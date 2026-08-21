@@ -46,7 +46,7 @@ private struct NotchShape: Shape {
     }
 }
 
-/// 紧凑模式：只有一条发丝线——贴在刘海下缘 3pt、与刘海同宽（boring.notch 收起态纪律），
+/// 紧凑模式：一条贴在刘海下缘 2pt、与刘海同宽的倒计时线，
 /// 无任何容器；悬停时下方浮现带描影的数字
 private struct CompactCountdown: View {
     @ObservedObject var app: AppState
@@ -60,7 +60,7 @@ private struct CompactCountdown: View {
                     paused: app.engineState == .paused,
                     accent: app.chinColor
                 )
-                .frame(height: 3.5)
+                .frame(height: 6)
 
                 Group {
                     if app.engineState == .paused {
@@ -74,8 +74,8 @@ private struct CompactCountdown: View {
                 .shadow(color: .black.opacity(0.85), radius: 2.5) // 无底色容器的可读性
                 .opacity(app.hovered ? 1 : 0)
             }
-            // padding 定位（刘海开孔高度 + 3pt 间隙），不参与布局高度计算，永不把线挤出窗口
-            .padding(.top, app.notchHeight + 3)
+            // padding 定位（刘海开孔高度 + 2pt 间隙），不参与布局高度计算，永不把线挤出窗口
+            .padding(.top, app.notchHeight + 2)
             .animation(.easeOut(duration: 0.18), value: app.hovered)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -85,8 +85,9 @@ private struct CompactCountdown: View {
     }
 }
 
-/// 发丝保险丝：2.5pt 圆头细线、纯色、零光晕零流光（克制即高级），
-/// 唯一特效 = 亮段从两头向中间收缩；中性灰槽在明暗壁纸都成立
+/// 倒计时线：6pt 圆头、平色无光晕；亮段 = 纯色体 + 0.6pt 白色"霓虹管芯"
+/// （Dynamic Island 活动胶囊的做法——彩色体加亮芯，无光晕也在任何壁纸上醒目），
+/// 从两头向中间收缩；中性灰槽在明暗壁纸都成立
 private struct FuseLine: View {
     var progress: Double
     var paused: Bool
@@ -94,17 +95,22 @@ private struct FuseLine: View {
 
     var body: some View {
         GeometryReader { geo in
-            let width = max(geo.size.width * progress, 4)
+            let width = max(geo.size.width * progress, 6)
             ZStack {
                 // 满量程槽：中性中灰，浅色/深色壁纸都可见
-                Capsule().fill(Color(white: 0.55).opacity(0.45))
+                Capsule().fill(Color(white: 0.55).opacity(0.5))
                 // 亮段：居中、两边向中间烧
-                Capsule()
-                    .fill(accent)
-                    .frame(width: width)
-                    .opacity(paused ? 0.35 : 1)
+                ZStack {
+                    Capsule().fill(accent)
+                    Capsule()
+                        .fill(Color.white.opacity(0.85))
+                        .frame(height: 1.2) // 管芯
+                        .padding(.horizontal, 3)
+                }
+                .frame(width: width)
+                .opacity(paused ? 0.35 : 1)
             }
-            .shadow(color: .black.opacity(0.35), radius: 0.8) // 浅壁纸上切出轮廓
+            .shadow(color: .black.opacity(0.4), radius: 1) // 浅壁纸上切出轮廓
         }
         .animation(.linear(duration: 0.5), value: progress)
         .animation(.easeInOut(duration: 0.2), value: paused)
