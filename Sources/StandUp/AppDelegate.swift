@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var loginMenuItem: NSMenuItem!
     private var cancellables: Set<AnyCancellable> = []
     private var workspaceObservers: [NSObjectProtocol] = []
+    private var clickMonitors: [Any] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 调试快照：离屏渲染 UI 到 /tmp/*.png（系统对开孔区的截图遮罩让屏上截图无法
@@ -30,9 +31,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.orderFrontRegardless()
         relayout()
 
+        panel.onMouseDown = { [weak self] in
+            guard let self, self.app.panelMode == .compact else { return }
+            self.app.openSettings()
+        }
+
         app.startTimer()
         installStatusItem()
         installObservers()
+        installClickOutsideDismiss()
         requestNotificationAuthorization()
         app.launchAtLogin = SMAppService.mainApp.status == .enabled
         refreshMenuTitles()
@@ -113,6 +120,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 forName: NSWorkspace.sessionDidBecomeActiveNotification, object: nil, queue: .main
             ) { [weak self] _ in self?.app.systemWake() },
         ]
+    }
+
+    /// 设置面板打开时，点击面板外任意处直接收起（面板内的按钮/取色不受影响）
+    private func installClickOutsideDismiss() {
+        let handler: (NSEvent) -> Void = { [weak self] event in
+            guard let self else { return }
+            guard app.panelMode == .settings else { return }
+            if !panel.frame.contains(NSEvent.mouseLocation) {
+                app.toggleSettings()
+            }
+        }
+        clickMonitors = [
+            NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown], handler: handler),
+            NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
+                handler(event)
+                return event
+            },
+        ].compactMap { $0 }
     }
 
     // MARK: - 菜单栏兜底入口

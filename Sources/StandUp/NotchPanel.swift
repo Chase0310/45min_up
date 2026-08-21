@@ -25,6 +25,15 @@ final class NotchPanel: NSPanel {
 
     override var canBecomeKey: Bool { true }
 
+    /// 单击直通：面板级 mouseDown 直接回调，不经过 SwiftUI 手势
+    /// （非激活面板上 SwiftUI tap 常吃掉第一次点击，体验成"双击才能打开"）
+    var onMouseDown: (() -> Void)?
+
+    override func mouseDown(with event: NSEvent) {
+        onMouseDown?()
+        super.mouseDown(with: event)
+    }
+
     /// 关键：默认实现会把窗口压到菜单栏之下（这正是首版面板浮在刘海下面的原因）。
     /// 刘海面板必须允许顶到屏幕最上沿，原样返回。
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {

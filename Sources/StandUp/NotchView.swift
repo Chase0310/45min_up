@@ -90,7 +90,6 @@ private struct CompactCountdown: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
-        .onTapGesture { app.toggleSettings() }
         .onHover { app.setHover($0) }
     }
 }
