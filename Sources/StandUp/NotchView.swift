@@ -54,24 +54,74 @@ private struct NotchShape: View {
     }
 }
 
-/// 紧凑模式：刘海内的倒计时，点击展开设置
+/// 紧凑模式：刘海下缘的蓝色进度线（随剩余时间收缩），悬停露出数字，点击打开设置
 private struct CompactCountdown: View {
     @ObservedObject var app: AppState
 
     var body: some View {
-        Group {
-            if app.engineState == .paused {
-                Text("⏸\(app.remaining.clockString)")
-            } else {
-                Text(app.remaining.clockString)
+        VStack(spacing: 0) {
+            Color.clear.frame(height: app.notchHeight) // 开孔区，无像素
+            ZStack(alignment: .top) {
+                CountdownFuse(
+                    progress: app.progressFraction,
+                    paused: app.engineState == .paused
+                )
+                .frame(height: 12)
+
+                Group {
+                    if app.engineState == .paused {
+                        Text("⏸ \(app.remaining.clockString)")
+                    } else {
+                        Text(app.remaining.clockString)
+                    }
+                }
+                .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
+                .foregroundColor(.white)
+                .padding(.top, 7)
+                .opacity(app.hovered ? 1 : 0)
+                .animation(.easeOut(duration: 0.15), value: app.hovered)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
-        .foregroundColor(.white.opacity(0.92))
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.top, app.notchHeight) // 开孔区无像素，文字落在下方"下巴"里居中
         .contentShape(Rectangle())
         .onTapGesture { app.toggleSettings() }
+        .onHover { app.setHover($0) }
+    }
+}
+
+/// 蓝色保险丝：极淡全宽轨道 + 按剩余比例收缩的亮线，燃点带光晕
+private struct CountdownFuse: View {
+    var progress: Double
+    var paused: Bool
+
+    private var accent: Color { Color(nsColor: .controlAccentColor) }
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = max(geo.size.width * progress, 4)
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.10))
+                ZStack(alignment: .trailing) {
+                    Capsule().fill(
+                        LinearGradient(
+                            colors: [accent.opacity(0.7), accent],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 4, height: 4)
+                        .shadow(color: accent, radius: 3)
+                        .opacity(paused ? 0 : 1)
+                }
+                .frame(width: width)
+                .shadow(color: accent.opacity(0.7), radius: 2)
+            }
+            .frame(height: 3.5)
+            .opacity(paused ? 0.35 : 1)
+            .animation(.linear(duration: 0.5), value: progress)
+        }
     }
 }
 

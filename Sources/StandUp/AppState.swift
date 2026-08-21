@@ -22,6 +22,14 @@ final class AppState: ObservableObject {
     @Published var launchAtLogin = false
     /// 刘海开孔高度（其上无物理像素）——紧凑模式内容要画在这条线以下
     @Published var notchHeight: CGFloat = 32
+    /// 鼠标是否悬停在紧凑区（悬停才显示数字）
+    @Published var hovered = false
+
+    /// 剩余进度 0…1（进度线宽度用）
+    var progressFraction: Double {
+        let total = engine.interval > 0 ? engine.interval : 1
+        return min(1, max(0, remaining / total))
+    }
 
     init(store: SettingsStore) {
         self.store = store
@@ -42,10 +50,22 @@ final class AppState: ObservableObject {
         let events = engine.advance(to: now)
         sync()
         if events.contains(.reminderStarted) {
+            hovered = false
             panelMode = .reminder
             Sound.play()
             postNotificationFallback()
         }
+    }
+
+    func setHover(_ on: Bool) {
+        guard panelMode == .compact, hovered != on else { return }
+        hovered = on
+    }
+
+    /// 菜单栏「打开设置」入口（悬停态不外带）
+    func openSettings() {
+        hovered = false
+        panelMode = .settings
     }
 
     // MARK: - 用户动作
@@ -84,6 +104,7 @@ final class AppState: ObservableObject {
     }
 
     func toggleSettings() {
+        hovered = false
         panelMode = panelMode == .settings ? .compact : .settings
     }
 

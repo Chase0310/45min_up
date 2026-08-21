@@ -42,11 +42,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let rect = notchRect(on: screen)
         app.notchHeight = rect.height
-        panel.place(mode: app.panelMode, notchRect: rect, screenFrame: screen.frame)
+        panel.place(
+            mode: app.panelMode,
+            notchRect: rect,
+            screenFrame: screen.frame,
+            hovered: app.hovered
+        )
     }
 
     private func installObservers() {
         app.$panelMode
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.relayout() }
+            .store(in: &cancellables)
+
+        app.$hovered
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.relayout() }
             .store(in: &cancellables)
@@ -128,7 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openSettings(_ sender: Any?) {
-        app.panelMode = .settings
+        app.openSettings()
     }
 
     @objc private func togglePause(_ sender: Any?) {

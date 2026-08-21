@@ -32,13 +32,15 @@ final class NotchPanel: NSPanel {
     }
 
     /// 按模式落位。
-    /// 紧凑 = 刘海矩形 + 向下的"下巴"（刘海开孔没有物理像素，内容必须画在下伸的真实像素区）；
+    /// 紧凑 = 刘海矩形 + 悬停区（刘海开孔没有物理像素，进度线画在下伸的真实像素区，
+    /// 悬停时区域从 idleHeight 伸到 expandedHeight 露出数字）；
     /// 展开 = 以屏幕水平中心对齐、顶边贴屏幕顶端向下伸展。
-    func place(mode: AppState.PanelMode, notchRect: CGRect, screenFrame: CGRect) {
+    func place(mode: AppState.PanelMode, notchRect: CGRect, screenFrame: CGRect, hovered: Bool) {
         let rect: NSRect
         switch mode {
         case .compact:
-            let height = notchRect.height + Self.compactChinHeight
+            let strip = hovered ? Self.compactExpandedHeight : Self.compactIdleHeight
+            let height = notchRect.height + strip
             rect = NSRect(
                 x: notchRect.minX,
                 y: notchRect.maxY - height,
@@ -54,11 +56,15 @@ final class NotchPanel: NSPanel {
                 height: size.height
             )
         }
-        setFrame(rect, display: true)
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.18
+            self.animator().setFrame(rect, display: true)
+        }
     }
 
-    /// 紧凑模式下伸到刘海下方的可见条高度（真实像素区）
-    static let compactChinHeight: CGFloat = 26
+    /// 紧凑模式悬停区高度：平时只放进度线，悬停多出一行数字
+    static let compactIdleHeight: CGFloat = 12
+    static let compactExpandedHeight: CGFloat = 28
 
     /// 无刘海机器（或只剩外接屏）时的退化：给定屏幕顶端正下方居中
     func placeFallback(on screen: NSScreen?) {
