@@ -51,8 +51,8 @@ private struct NotchShape: Shape {
     }
 }
 
-/// 紧凑模式：挂在刘海下方的"碗"——一条与刘海同宽的 ∪ 弧倒计时，
-/// 进度沿弧从两端向碗底烧；悬停时数字浮现在碗的凹腔里
+/// 紧凑模式：刘海下方一条与刘海同宽的普通直线倒计时；
+/// 悬停时下方浮现数字
 private struct CompactCountdown: View {
     @ObservedObject var app: AppState
 
@@ -65,7 +65,7 @@ private struct CompactCountdown: View {
                     paused: app.engineState == .paused,
                     accent: app.chinColor
                 )
-                .frame(height: 18)
+                .frame(height: 6)
 
                 if app.hovered {
                     Group {
@@ -93,9 +93,8 @@ private struct CompactCountdown: View {
     }
 }
 
-/// 托盘倒计时：视觉白噪音——完全静止的形状，唯一变化是长度以肉眼不可察的
-/// 速度缩短（185pt / 45min ≈ 0.07pt/s）；零循环动画、零辉光、零闪烁，
-/// 注意力全部留给到点的提醒横幅
+/// 倒计时线：一条普通直线。灰线满量程，彩线居中、两端向中间缩，
+/// 无任何形状花样与循环动画——视觉白噪音
 private struct FuseBowl: View {
     var progress: Double
     var paused: Bool
@@ -105,41 +104,15 @@ private struct FuseBowl: View {
         let p = min(max(progress, 0.04), 1)
         let stroke = StrokeStyle(lineWidth: 6, lineCap: .round)
         return ZStack {
-            // 满量程：中性中灰
-            TrayArc()
+            Capsule()
                 .stroke(Color(white: 0.55).opacity(0.4), style: stroke)
-            // 亮段：纯色、无任何附加效果
-            TrayArc()
+            Capsule()
                 .trim(from: (1 - p) / 2, to: (1 + p) / 2)
                 .stroke(accent.opacity(paused ? 0.35 : 0.9), style: stroke)
         }
-        .shadow(color: .black.opacity(0.35), radius: 0.8) // 浅壁纸可辨性，非装饰
+        .shadow(color: .black.opacity(0.35), radius: 0.8)
         .animation(.linear(duration: 0.5), value: progress)
         .animation(.easeInOut(duration: 0.2), value: paused)
-    }
-}
-
-/// 托盘形：中间直线、两端小弧上翘（镜像刘海底缘的圆角轮廓）
-private struct TrayArc: Shape {
-    static let corner: CGFloat = 16 // 两端弧的水平跨度
-    static let rise: CGFloat = 10 // 两端比中间上翘的高度
-
-    func path(in rect: CGRect) -> Path {
-        let w = rect.width
-        let c = min(Self.corner, w / 2)
-        let rise = Self.rise
-        var p = Path()
-        p.move(to: CGPoint(x: 0, y: 0))
-        p.addQuadCurve(
-            to: CGPoint(x: c, y: rise),
-            control: CGPoint(x: c * 0.55, y: 0)
-        )
-        p.addLine(to: CGPoint(x: w - c, y: rise))
-        p.addQuadCurve(
-            to: CGPoint(x: w, y: 0),
-            control: CGPoint(x: w - c * 0.45, y: 0)
-        )
-        return p
     }
 }
 
