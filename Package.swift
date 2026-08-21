@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "StandUp",
-    platforms: [.macOS(.v13)],
+    platforms: [.macOS(.v14)], // symbolEffect（Apple 预制符号动效）需要 macOS 14
     targets: [
         .target(
             name: "StandUpCore",
