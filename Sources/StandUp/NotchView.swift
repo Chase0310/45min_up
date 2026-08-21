@@ -6,16 +6,19 @@ struct NotchView: View {
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(NotchShape())
             .animation(.easeInOut(duration: 0.2), value: app.panelMode)
     }
 
     @ViewBuilder
     private var content: some View {
         switch app.panelMode {
-        case .compact: CompactCountdown(app: app)
-        case .reminder: ReminderBanner(app: app)
-        case .settings: SettingsPanel(app: app)
+        case .compact:
+            // 紧凑模式自带蓝色胶囊背景，不用黑色 NotchShape
+            CompactCountdown(app: app)
+        case .reminder:
+            ReminderBanner(app: app).background(NotchShape())
+        case .settings:
+            SettingsPanel(app: app).background(NotchShape())
         }
     }
 }
@@ -54,34 +57,21 @@ private struct NotchShape: View {
     }
 }
 
-/// 紧凑模式：刘海下缘的蓝色进度线（随剩余时间收缩），悬停露出数字，点击打开设置
+/// 紧凑模式：吊在刘海下方的整体蓝色胶囊——平时是细进度条，悬停长高、数字长在蓝底里
 private struct CompactCountdown: View {
     @ObservedObject var app: AppState
 
     var body: some View {
         VStack(spacing: 0) {
-            Color.clear.frame(height: app.notchHeight) // 开孔区，无像素
-            ZStack(alignment: .top) {
-                CountdownFuse(
-                    progress: app.progressFraction,
-                    paused: app.engineState == .paused
-                )
-                .frame(height: 12)
-
-                Group {
-                    if app.engineState == .paused {
-                        Text("⏸ \(app.remaining.clockString)")
-                    } else {
-                        Text(app.remaining.clockString)
-                    }
-                }
-                .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
-                .foregroundColor(.white)
-                .padding(.top, 7)
-                .opacity(app.hovered ? 1 : 0)
-                .animation(.easeOut(duration: 0.15), value: app.hovered)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            Color.clear.frame(height: app.notchHeight + 4) // 开孔区（无像素）+ 呼吸间隙
+            BlueChin(
+                progress: app.progressFraction,
+                paused: app.engineState == .paused,
+                hovered: app.hovered,
+                text: app.engineState == .paused
+                    ? "⏸ \(app.remaining.clockString)" : app.remaining.clockString
+            )
+            .frame(maxHeight: .infinity, alignment: .top)
         }
         .contentShape(Rectangle())
         .onTapGesture { app.toggleSettings() }
@@ -89,24 +79,28 @@ private struct CompactCountdown: View {
     }
 }
 
-/// 电光蓝保险丝：深蓝→亮青渐变线随剩余时间收缩，白色燃点 + 青色光晕 + 流动高光
-private struct CountdownFuse: View {
+/// 电光蓝胶囊：暗蓝全宽底 + 随剩余时间收缩的亮蓝渐变，白热燃点、青色光晕、流动高光
+private struct BlueChin: View {
     var progress: Double
     var paused: Bool
+    var hovered: Bool
+    var text: String
 
     @State private var shimmerOn = false
 
     // 固定电光蓝，不跟随系统强调色（Graphite 用户会得到一根黑线）
-    private static let blueDeep = Color(red: 0.04, green: 0.4, blue: 1.0)
-    private static let blueNeon = Color(red: 0, green: 0.78, blue: 1.0)
+    fileprivate static let blueDeep = Color(red: 0.04, green: 0.4, blue: 1.0)
+    fileprivate static let blueNeon = Color(red: 0, green: 0.78, blue: 1.0)
+
+    private var capsuleHeight: CGFloat { hovered ? 26 : 8 }
 
     var body: some View {
         GeometryReader { geo in
-            let width = max(geo.size.width * progress, 4)
+            let width = max(geo.size.width * progress, 8)
             ZStack(alignment: .leading) {
-                // 全宽轨道（微蓝，作满刻度参照）
-                Capsule().fill(Self.blueNeon.opacity(0.14))
-                // 燃烧中的亮线
+                // 暗蓝全宽底（剩余量的参照）
+                Capsule().fill(Self.blueNeon.opacity(0.22))
+                // 亮蓝：随时间收缩
                 ZStack(alignment: .trailing) {
                     Capsule().fill(
                         LinearGradient(
@@ -121,14 +115,21 @@ private struct CountdownFuse: View {
                         .frame(width: 4, height: 4)
                         .shadow(color: Self.blueNeon, radius: 3.5)
                         .opacity(paused ? 0 : 1)
-                    // 流动高光（能量在跑的感觉）
+                    // 流动高光
                     shimmer(width: geo.size.width)
                 }
                 .frame(width: width)
                 .shadow(color: Self.blueNeon.opacity(0.8), radius: 3)
+                .opacity(paused ? 0.35 : 1)
+                // 数字长在蓝底里
+                Text(text)
+                    .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .opacity(hovered ? 1 : 0)
             }
-            .frame(height: 3.5)
-            .opacity(paused ? 0.35 : 1)
+            .frame(height: capsuleHeight)
+            .animation(.easeOut(duration: 0.18), value: hovered)
             .animation(.linear(duration: 0.5), value: progress)
         }
     }
@@ -137,11 +138,11 @@ private struct CountdownFuse: View {
         Capsule()
             .fill(
                 LinearGradient(
-                    colors: [.clear, .white.opacity(0.55), .clear],
+                    colors: [.clear, .white.opacity(0.5), .clear],
                     startPoint: .leading, endPoint: .trailing
                 )
             )
-            .frame(width: 28)
+            .frame(width: min(28, width))
             .offset(x: shimmerOn ? width : -28)
             .opacity(paused ? 0 : 1)
             .onAppear {
