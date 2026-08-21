@@ -29,6 +29,10 @@ final class AppState: ObservableObject {
     @Published var chinColor: Color {
         didSet { store.accentHex = chinColor.hexString }
     }
+    /// 线条与刘海底缘的间隙（pt，用户实时可调）
+    @Published var notchGap: Double {
+        didSet { store.notchGap = notchGap }
+    }
 
     /// 剩余进度 0…1（进度线宽度用）
     var progressFraction: Double {
@@ -44,6 +48,7 @@ final class AppState: ObservableObject {
         self.engineState = engine.state
         self.intervalMinutes = minutes
         self.chinColor = Color(hex: store.accentHex)
+        self.notchGap = store.notchGap
     }
 
     func startTimer() {

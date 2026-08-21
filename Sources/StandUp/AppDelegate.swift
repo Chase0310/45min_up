@@ -54,7 +54,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             mode: app.panelMode,
             notchRect: rect,
             screenFrame: screen.frame,
-            hovered: app.hovered
+            hovered: app.hovered,
+            gap: app.notchGap
         )
     }
 
@@ -65,6 +66,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .store(in: &cancellables)
 
         app.$hovered
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.relayout() }
+            .store(in: &cancellables)
+
+        app.$notchGap
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.relayout() }
             .store(in: &cancellables)

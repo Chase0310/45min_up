@@ -78,7 +78,7 @@ private struct CompactCountdown: View {
             }
             // padding 定位：刘海开孔高度 + 16pt 间隙——macOS 26 在开孔正下方有系统级
             // 遮挡带（实测逻辑 y≈33-44+），线必须落在带之下才真实可见
-            .padding(.top, app.notchHeight + 16)
+            .padding(.top, app.notchHeight + CGFloat(app.notchGap))
             .animation(.easeOut(duration: 0.18), value: app.hovered)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -198,6 +198,32 @@ private struct SettingsPanel: View {
                 ColorPicker("", selection: $app.chinColor, supportsOpacity: false)
                     .labelsHidden()
                     .frame(width: 56)
+            }
+            .padding(.horizontal, 4)
+
+            HStack {
+                Text("线条位置（离刘海）")
+                    .font(.system(size: 12, design: .rounded))
+                    .foregroundColor(.white.opacity(0.7))
+                Spacer()
+                Button {
+                    app.notchGap -= 1
+                } label: {
+                    Image(systemName: "minus.circle")
+                }
+                .buttonStyle(PlainButtonStyle())
+                .foregroundColor(.white)
+                Text("\(Int(app.notchGap)) pt")
+                    .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
+                    .foregroundColor(.white)
+                    .frame(minWidth: 40)
+                Button {
+                    app.notchGap += 1
+                } label: {
+                    Image(systemName: "plus.circle")
+                }
+                .buttonStyle(PlainButtonStyle())
+                .foregroundColor(.white)
             }
             .padding(.horizontal, 4)
 
