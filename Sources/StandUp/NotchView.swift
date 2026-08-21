@@ -63,8 +63,7 @@ private struct CompactCountdown: View {
                 FuseBowl(
                     progress: app.progressFraction,
                     paused: app.engineState == .paused,
-                    accent: app.chinColor,
-                    urgent: app.isUrgent
+                    accent: app.chinColor
                 )
                 .frame(height: 18)
 
@@ -94,129 +93,29 @@ private struct CompactCountdown: View {
     }
 }
 
-/// 托盘保险丝：中间一条直线、两端小弧上翘（贴合刘海底缘轮廓），6pt 圆头描边——
-/// 灰线为满量程，亮线居中、从两端向中间烧；白管芯、端点火苗脉动、能量点沿线巡回
+/// 托盘倒计时：视觉白噪音——完全静止的形状，唯一变化是长度以肉眼不可察的
+/// 速度缩短（185pt / 45min ≈ 0.07pt/s）；零循环动画、零辉光、零闪烁，
+/// 注意力全部留给到点的提醒横幅
 private struct FuseBowl: View {
     var progress: Double
     var paused: Bool
     var accent: Color
-    var urgent: Bool
-
-    @State private var flamePulse = false
-
-    private var coreColor: Color {
-        urgent ? Color(red: 1, green: 0.82, blue: 0.55) : Color.white.opacity(0.85)
-    }
-    private var glowColor: Color {
-        urgent ? Color(red: 1, green: 0.55, blue: 0.2) : accent
-    }
-
-    /// 亮段参数区间（0=左端 1=右端，0.5=正中）
-    private var litRange: ClosedRange<Double> {
-        let p = min(max(progress, 0.04), 1)
-        return (1 - p) / 2 ... (1 + p) / 2
-    }
 
     var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width
-            let shape = TrayArc()
-            let stroke = StrokeStyle(lineWidth: 6, lineCap: .round)
-
-            ZStack {
-                // 满量程：中性中灰
-                shape.stroke(Color(white: 0.55).opacity(0.5), style: stroke)
-                    .shadow(color: .black.opacity(0.4), radius: 1)
-
-                // 亮段 + 管芯 + 辉光
-                shape.trim(from: litRange.lowerBound, to: litRange.upperBound)
-                    .stroke(accent, style: stroke)
-                    .shadow(color: glowColor.opacity(urgent ? 1 : 0.8), radius: urgent ? 5 : 3)
-                shape.trim(from: litRange.lowerBound, to: litRange.upperBound)
-                    .stroke(coreColor, style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
-                    .opacity(paused ? 0.35 : 1)
-
-                // 端点火苗
-                flame(at: trayPoint(litRange.lowerBound, w: w))
-                flame(at: trayPoint(litRange.upperBound, w: w))
-
-                // 能量点沿亮段巡回
-                TimelineView(.animation(minimumInterval: 0.05)) { context in
-                    let period = urgent ? 0.8 : 1.6
-                    let t = context.date.timeIntervalSinceReferenceDate
-                        .truncatingRemainder(dividingBy: period) / period
-                    let param = litRange.lowerBound + t * (litRange.upperBound - litRange.lowerBound)
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 3.5, height: 3.5)
-                        .position(trayPoint(param, w: w))
-                        .opacity(paused ? 0 : 0.9)
-                }
-            }
+        let p = min(max(progress, 0.04), 1)
+        let stroke = StrokeStyle(lineWidth: 6, lineCap: .round)
+        return ZStack {
+            // 满量程：中性中灰
+            TrayArc()
+                .stroke(Color(white: 0.55).opacity(0.4), style: stroke)
+            // 亮段：纯色、无任何附加效果
+            TrayArc()
+                .trim(from: (1 - p) / 2, to: (1 + p) / 2)
+                .stroke(accent.opacity(paused ? 0.35 : 0.9), style: stroke)
         }
-        .opacity(paused ? 0.6 : 1)
+        .shadow(color: .black.opacity(0.35), radius: 0.8) // 浅壁纸可辨性，非装饰
         .animation(.linear(duration: 0.5), value: progress)
         .animation(.easeInOut(duration: 0.2), value: paused)
-    }
-
-    /// 参数 t∈[0,1] → 托盘上的坐标（与 TrayArc 的分段一致）
-    private func trayPoint(_ t: Double, w: CGFloat) -> CGPoint {
-        let c = min(TrayArc.corner, w / 2)
-        let rise = TrayArc.rise
-        let curveLen = c * 1.15
-        let straightLen = w - 2 * c
-        let total = straightLen + 2 * curveLen
-        let d = t * total
-
-        func quad(_ u: CGFloat, _ p0: CGPoint, _ pc: CGPoint, _ p1: CGPoint) -> CGPoint {
-            let i: CGFloat = 1 - u
-            return CGPoint(
-                x: i * i * p0.x + 2 * i * u * pc.x + u * u * p1.x,
-                y: i * i * p0.y + 2 * i * u * pc.y + u * u * p1.y
-            )
-        }
-
-        if d < curveLen {
-            return quad(
-                CGFloat(d / curveLen),
-                CGPoint(x: 0, y: 0),
-                CGPoint(x: c * 0.55, y: 0),
-                CGPoint(x: c, y: rise)
-            )
-        } else if d < curveLen + straightLen {
-            return CGPoint(x: c + CGFloat(d - curveLen), y: rise)
-        } else {
-            return quad(
-                CGFloat((d - curveLen - straightLen) / curveLen),
-                CGPoint(x: w - c, y: rise),
-                CGPoint(x: w - c * 0.45, y: 0),
-                CGPoint(x: w, y: 0)
-            )
-        }
-    }
-
-    private func flame(at point: CGPoint) -> some View {
-        Circle()
-            .fill(
-                RadialGradient(
-                    colors: [coreColor, glowColor.opacity(0.55), .clear],
-                    center: .center,
-                    startRadius: 0,
-                    endRadius: 5.5
-                )
-            )
-            .frame(width: 11, height: 11)
-            .position(point)
-            .scaleEffect(flamePulse ? 1.3 : 0.8)
-            .opacity(paused ? 0 : (flamePulse ? 0.6 : 1))
-            .onAppear {
-                withAnimation(
-                    .easeInOut(duration: urgent ? 0.4 : 0.9)
-                        .repeatForever(autoreverses: true)
-                ) {
-                    flamePulse = true
-                }
-            }
     }
 }
 
