@@ -51,22 +51,22 @@ private struct NotchShape: Shape {
     }
 }
 
-/// 紧凑模式：一条贴在刘海下缘 2pt、与刘海同宽的倒计时线，
-/// 无任何容器；悬停时下方浮现带描影的数字
+/// 紧凑模式：挂在刘海下方的"碗"——一条与刘海同宽的 ∪ 弧倒计时，
+/// 进度沿弧从两端向碗底烧；悬停时数字浮现在碗的凹腔里
 private struct CompactCountdown: View {
     @ObservedObject var app: AppState
 
     var body: some View {
         ZStack(alignment: .top) {
             Color.clear
-            VStack(spacing: 4) {
-                FuseLine(
+            VStack(spacing: 0) {
+                FuseBowl(
                     progress: app.progressFraction,
                     paused: app.engineState == .paused,
                     accent: app.chinColor,
                     urgent: app.isUrgent
                 )
-                .frame(height: 6)
+                .frame(height: 22)
 
                 if app.hovered {
                     Group {
@@ -78,12 +78,12 @@ private struct CompactCountdown: View {
                     }
                     .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
                     .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.85), radius: 2.5) // 无底色容器的可读性
+                    .shadow(color: .black.opacity(0.85), radius: 2.5)
                     .transition(.opacity)
                 }
             }
-            // padding 定位：刘海开孔高度 + 16pt 间隙——macOS 26 在开孔正下方有系统级
-            // 遮挡带（实测逻辑 y≈33-44+），线必须落在带之下才真实可见
+            // padding 定位：刘海开孔高度 + 间隙——macOS 26 在开孔正下方有系统级
+            // 遮挡带（实测逻辑 y≈33-44+），碗必须落在带之下才真实可见
             .padding(.top, app.notchHeight + CGFloat(app.notchGap))
             .animation(.easeOut(duration: 0.18), value: app.hovered)
         }
@@ -94,16 +94,14 @@ private struct CompactCountdown: View {
     }
 }
 
-/// 倒计时线：6pt 圆头，亮段 = 纯色体 + 白色管芯 + 主题色辉光，
-/// 两端柔光火苗呼吸脉动 + 高光能量流；最后 1 分钟进入 urgent 高潮
-/// （火苗狂跳、管芯炽白偏橙、光晕加强）；从两头向中间收缩
-private struct FuseLine: View {
+/// 碗形保险丝：与刘海同宽的 ∪ 弧，6pt 圆头描边——灰弧为满量程，
+/// 亮弧居中、从两端向碗底烧；白管芯、端点火苗脉动、能量点沿弧巡回；urgent 加热
+private struct FuseBowl: View {
     var progress: Double
     var paused: Bool
     var accent: Color
     var urgent: Bool
 
-    @State private var shimmerOn = false
     @State private var flamePulse = false
 
     private var coreColor: Color {
@@ -113,40 +111,67 @@ private struct FuseLine: View {
         urgent ? Color(red: 1, green: 0.55, blue: 0.2) : accent
     }
 
+    /// 亮弧参数区间（弧参数 0=左端 1=右端，0.5=碗底）
+    private var litRange: ClosedRange<Double> {
+        let p = min(max(progress, 0.04), 1)
+        return (1 - p) / 2 ... (1 + p) / 2
+    }
+
     var body: some View {
         GeometryReader { geo in
-            let width = max(geo.size.width * progress, 6)
+            let w = geo.size.width
+            let depth = geo.size.height - 6 // 弧线本身占 6pt
+            let scale = depth / (w / 2)
+            let arc = BowlArc(depthScale: min(1, max(0.05, scale)))
+            let stroke = StrokeStyle(lineWidth: 6, lineCap: .round)
+
             ZStack {
-                // 满量程槽：中性中灰，浅色/深色壁纸都可见
-                Capsule().fill(Color(white: 0.55).opacity(0.5))
-                // 亮段：居中、两边向中间烧
-                ZStack {
-                    Capsule().fill(accent)
-                    Capsule()
-                        .fill(coreColor)
-                        .frame(height: 1.2) // 管芯
-                        .padding(.horizontal, 3)
-                    // 两端火苗
-                    HStack(spacing: 0) {
-                        flame
-                        Spacer(minLength: 0)
-                        flame
-                    }
-                    // 能量流
-                    shimmer(width: geo.size.width)
+                // 满量程弧：中性中灰
+                arc.stroke(Color(white: 0.55).opacity(0.5), style: stroke)
+                    .shadow(color: .black.opacity(0.4), radius: 1)
+
+                // 亮弧 + 管芯 + 辉光
+                arc.trim(from: litRange.lowerBound, to: litRange.upperBound)
+                    .stroke(accent, style: stroke)
+                    .shadow(color: glowColor.opacity(urgent ? 1 : 0.8), radius: urgent ? 5 : 3)
+                arc.trim(from: litRange.lowerBound, to: litRange.upperBound)
+                    .stroke(coreColor, style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
+                    .opacity(paused ? 0.35 : 1)
+
+                // 端点火苗（亮弧两端）
+                flame(at: arcPoint(litRange.lowerBound, w: w, depth: depth))
+                flame(at: arcPoint(litRange.upperBound, w: w, depth: depth))
+
+                // 能量点沿亮弧巡回
+                TimelineView(.animation(minimumInterval: 0.05)) { context in
+                    let period = urgent ? 0.8 : 1.6
+                    let t = context.date.timeIntervalSinceReferenceDate
+                        .truncatingRemainder(dividingBy: period) / period
+                    let param = litRange.lowerBound + t * (litRange.upperBound - litRange.lowerBound)
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 3.5, height: 3.5)
+                        .position(arcPoint(param, w: w, depth: depth))
+                        .opacity(paused ? 0 : 0.9)
                 }
-                .frame(width: width)
-                .shadow(color: glowColor.opacity(urgent ? 1 : 0.8), radius: urgent ? 5 : 3)
-                .opacity(paused ? 0.35 : 1)
             }
-            .shadow(color: .black.opacity(0.4), radius: 1) // 浅壁纸上切出轮廓
         }
+        .opacity(paused ? 0.6 : 1)
         .animation(.linear(duration: 0.5), value: progress)
         .animation(.easeInOut(duration: 0.2), value: paused)
     }
 
-    /// 端点火苗：柔光径向渐变，呼吸脉动（urgent 时倍速狂跳）
-    private var flame: some View {
+    /// 弧参数 t∈[0,1] → 几何坐标（0=左端，0.5=碗底，1=右端）
+    private func arcPoint(_ t: Double, w: CGFloat, depth: CGFloat) -> CGPoint {
+        let angle = (180 - t * 180) * .pi / 180
+        let r = w / 2
+        return CGPoint(
+            x: r + r * CGFloat(cos(angle)),
+            y: 3 + depth * CGFloat(sin(angle)) // 3pt 补偿描边半径，让火苗贴在弧线上
+        )
+    }
+
+    private func flame(at point: CGPoint) -> some View {
         Circle()
             .fill(
                 RadialGradient(
@@ -157,6 +182,7 @@ private struct FuseLine: View {
                 )
             )
             .frame(width: 11, height: 11)
+            .position(point)
             .scaleEffect(flamePulse ? 1.3 : 0.8)
             .opacity(paused ? 0 : (flamePulse ? 0.6 : 1))
             .onAppear {
@@ -168,27 +194,23 @@ private struct FuseLine: View {
                 }
             }
     }
+}
 
-    /// 高光能量流：一段白光周期性从线头扫到线尾
-    private func shimmer(width: CGFloat) -> some View {
-        Capsule()
-            .fill(
-                LinearGradient(
-                    colors: [.clear, Color.white.opacity(urgent ? 0.7 : 0.45), .clear],
-                    startPoint: .leading, endPoint: .trailing
-                )
-            )
-            .frame(width: min(26, width))
-            .offset(x: shimmerOn ? width : -26)
-            .opacity(paused ? 0 : 1)
-            .onAppear {
-                withAnimation(
-                    .linear(duration: urgent ? 0.8 : 1.6)
-                        .repeatForever(autoreverses: false)
-                ) {
-                    shimmerOn = true
-                }
-            }
+/// 单位碗弧：以 (w/2, 0) 为圆心的下半圆，再纵向压扁到目标深度
+private struct BowlArc: Shape {
+    var depthScale: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let r = rect.width / 2
+        var p = Path()
+        p.addArc(
+            center: CGPoint(x: r, y: 0),
+            radius: r,
+            startAngle: .degrees(180),
+            endAngle: .degrees(0),
+            clockwise: true
+        )
+        return p.applying(CGAffineTransform(scaleX: 1, y: depthScale))
     }
 }
 

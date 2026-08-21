@@ -45,10 +45,10 @@ final class NotchPanel: NSPanel {
         let rect: NSRect
         switch mode {
         case .compact:
-            // 条高 = 间隙 + 6pt 线 + 余量；悬停再加一行数字
+            // 条高 = 间隙 + 22pt 碗弧 + 余量；悬停碗腔内多一行数字
             let strip = hovered
-                ? CGFloat(gap) + Self.lineHeight + 4 + 20
-                : CGFloat(gap) + Self.lineHeight + 3
+                ? CGFloat(gap) + Self.bowlHeight + 24
+                : CGFloat(gap) + Self.bowlHeight + 3
             let height = notchRect.height + strip
             rect = NSRect(
                 x: notchRect.minX,
@@ -71,7 +71,7 @@ final class NotchPanel: NSPanel {
         }
     }
 
-    static let lineHeight: CGFloat = 6
+    static let bowlHeight: CGFloat = 22
 
     /// 无刘海机器（或只剩外接屏）时的退化：给定屏幕顶端正下方居中
     func placeFallback(on screen: NSScreen?) {
