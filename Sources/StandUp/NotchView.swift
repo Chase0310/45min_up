@@ -16,46 +16,33 @@ struct NotchView: View {
             // 紧凑模式自带蓝色胶囊背景，不用黑色 NotchShape
             CompactCountdown(app: app)
         case .reminder:
-            ReminderBanner(app: app).background(NotchShape())
+            ReminderBanner(app: app).background(NotchShape().fill(Color.black.opacity(0.98)))
         case .settings:
-            SettingsPanel(app: app).background(NotchShape())
+            SettingsPanel(app: app).background(NotchShape().fill(Color.black.opacity(0.98)))
         }
     }
 }
 
-/// 上边直角、下边圆角的底（顶部与屏幕顶端齐平，视觉上像刘海的延伸）；半径可调
-private struct NotchShape: View {
+/// 上边直角、下边圆角的形（顶部与屏幕顶端齐平，视觉上像刘海的延伸）；半径可调
+private struct NotchShape: Shape {
     var radius: CGFloat = 14
 
-    var body: some View {
-        GeometryReader { geo in
-            Path { path in
-                let radius = min(radius, geo.size.height / 2)
-                let w = geo.size.width
-                let h = geo.size.height
-                path.move(to: .zero)
-                path.addLine(to: CGPoint(x: w, y: 0))
-                path.addLine(to: CGPoint(x: w, y: h - radius))
-                path.addQuadCurve(
-                    to: CGPoint(x: w - radius, y: h),
-                    control: CGPoint(x: w, y: h)
-                )
-                path.addLine(to: CGPoint(x: radius, y: h))
-                path.addQuadCurve(to: CGPoint(x: 0, y: h - radius), control: CGPoint(x: 0, y: h))
-                path.closeSubpath()
-            }
-            .fill(Color.black)
-            .overlay(
-                RoundedRectangle(cornerRadius: 0) // 描边只画下缘方向，弱化
-                    .stroke(Color.white.opacity(0.06), lineWidth: 0.5)
-                    .mask(
-                        LinearGradient(
-                            colors: [.clear, .white],
-                            startPoint: .top, endPoint: .bottom
-                        )
-                    )
-            )
-        }
+    func path(in rect: CGRect) -> Path {
+        let radius = min(radius, rect.height / 2)
+        let w = rect.width
+        let h = rect.height
+        var path = Path()
+        path.move(to: .zero)
+        path.addLine(to: CGPoint(x: w, y: 0))
+        path.addLine(to: CGPoint(x: w, y: h - radius))
+        path.addQuadCurve(
+            to: CGPoint(x: w - radius, y: h),
+            control: CGPoint(x: w, y: h)
+        )
+        path.addLine(to: CGPoint(x: radius, y: h))
+        path.addQuadCurve(to: CGPoint(x: 0, y: h - radius), control: CGPoint(x: 0, y: h))
+        path.closeSubpath()
+        return path
     }
 }
 
