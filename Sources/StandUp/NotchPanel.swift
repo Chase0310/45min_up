@@ -31,12 +31,20 @@ final class NotchPanel: NSPanel {
         frameRect
     }
 
-    /// 按模式落位：紧凑=精确覆盖刘海；展开=以屏幕水平中心对齐、顶边贴屏幕顶端向下伸展。
+    /// 按模式落位。
+    /// 紧凑 = 刘海矩形 + 向下的"下巴"（刘海开孔没有物理像素，内容必须画在下伸的真实像素区）；
+    /// 展开 = 以屏幕水平中心对齐、顶边贴屏幕顶端向下伸展。
     func place(mode: AppState.PanelMode, notchRect: CGRect, screenFrame: CGRect) {
         let rect: NSRect
         switch mode {
         case .compact:
-            rect = notchRect
+            let height = notchRect.height + Self.compactChinHeight
+            rect = NSRect(
+                x: notchRect.minX,
+                y: notchRect.maxY - height,
+                width: notchRect.width,
+                height: height
+            )
         case .reminder, .settings:
             let size = expandedSize(for: mode)
             rect = NSRect(
@@ -48,6 +56,9 @@ final class NotchPanel: NSPanel {
         }
         setFrame(rect, display: true)
     }
+
+    /// 紧凑模式下伸到刘海下方的可见条高度（真实像素区）
+    static let compactChinHeight: CGFloat = 26
 
     /// 无刘海机器（或只剩外接屏）时的退化：给定屏幕顶端正下方居中
     func placeFallback(on screen: NSScreen?) {

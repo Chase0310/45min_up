@@ -25,7 +25,7 @@ private struct NotchShape: View {
     var body: some View {
         GeometryReader { geo in
             Path { path in
-                let radius: CGFloat = 20
+                let radius: CGFloat = 14
                 let w = geo.size.width
                 let h = geo.size.height
                 path.move(to: .zero)
@@ -69,6 +69,7 @@ private struct CompactCountdown: View {
         .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
         .foregroundColor(.white.opacity(0.92))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, app.notchHeight) // 开孔区无像素，文字落在下方"下巴"里居中
         .contentShape(Rectangle())
         .onTapGesture { app.toggleSettings() }
     }
@@ -90,7 +91,7 @@ private struct ReminderBanner: View {
                     .buttonStyle(PillButtonStyle(tint: Color.white.opacity(0.14), text: .white))
             }
         }
-        .padding(.top, 34)
+        .padding(.top, 38)
         .padding(.bottom, 18)
     }
 }
@@ -155,7 +156,7 @@ private struct SettingsPanel: View {
                     .buttonStyle(PillButtonStyle(tint: Color.accentColor, text: .white))
             }
         }
-        .padding(.top, 30)
+        .padding(.top, 38)
         .padding(.bottom, 18)
     }
 }

@@ -20,6 +20,8 @@ final class AppState: ObservableObject {
     @Published var panelMode: PanelMode = .compact
     @Published private(set) var intervalMinutes: Double
     @Published var launchAtLogin = false
+    /// 刘海开孔高度（其上无物理像素）——紧凑模式内容要画在这条线以下
+    @Published var notchHeight: CGFloat = 32
 
     init(store: SettingsStore) {
         self.store = store

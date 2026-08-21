@@ -40,7 +40,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             panel.placeFallback(on: NSScreen.main)
             return
         }
-        panel.place(mode: app.panelMode, notchRect: notchRect(on: screen), screenFrame: screen.frame)
+        let rect = notchRect(on: screen)
+        app.notchHeight = rect.height
+        panel.place(mode: app.panelMode, notchRect: rect, screenFrame: screen.frame)
     }
 
     private func installObservers() {
