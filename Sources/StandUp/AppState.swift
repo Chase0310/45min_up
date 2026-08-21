@@ -161,6 +161,9 @@ final class AppState: ObservableObject {
     }
 
     private func postNotificationFallback() {
+        // 裸二进制（调试快照）没有 bundle，UNUserNotificationCenter 会抛
+        // bundleProxyForCurrentProcess 异常，直接跳过
+        guard Bundle.main.bundleIdentifier != nil else { return }
         let content = UNMutableNotificationContent()
         content.title = "45min Up"
         content.body = "该站起来活动一下了 💪"

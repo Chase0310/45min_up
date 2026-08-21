@@ -6,19 +6,24 @@ struct NotchView: View {
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .animation(.easeInOut(duration: 0.2), value: app.panelMode)
+            .animation(.spring(response: 0.4, dampingFraction: 0.65), value: app.panelMode)
     }
 
     @ViewBuilder
     private var content: some View {
         switch app.panelMode {
         case .compact:
-            // 紧凑模式自带蓝色胶囊背景，不用黑色 NotchShape
+            // 紧凑模式无容器背景
             CompactCountdown(app: app)
+                .transition(.opacity)
         case .reminder:
-            ReminderBanner(app: app).background(NotchShape().fill(Color.black.opacity(0.98)))
+            ReminderBanner(app: app)
+                .background(NotchShape().fill(Color.black.opacity(0.98)))
+                .transition(.scale(scale: 0.7).combined(with: .opacity))
         case .settings:
-            SettingsPanel(app: app).background(NotchShape().fill(Color.black.opacity(0.98)))
+            SettingsPanel(app: app)
+                .background(NotchShape().fill(Color.black.opacity(0.98)))
+                .transition(.scale(scale: 0.8).combined(with: .opacity))
         }
     }
 }
@@ -187,24 +192,74 @@ private struct FuseLine: View {
     }
 }
 
-/// 站立提醒横幅
+/// 站立提醒横幅：原地蹦跳的小人 + 呼吸脉动的主按钮 + 顶部会师火花辉光
 private struct ReminderBanner: View {
     @ObservedObject var app: AppState
 
+    @State private var buttonBreath = false
+    @State private var sparkPulse = false
+
     var body: some View {
         VStack(spacing: 12) {
-            Text("🧍 该站起来活动一下了")
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundColor(.white)
+            HStack(spacing: 10) {
+                Text("🧍")
+                    .font(.system(size: 24))
+                    .modifier(HopInPlace())
+                Text("该站起来活动一下了")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+            }
             HStack(spacing: 14) {
                 Button("我站起来了") { app.acknowledge() }
                     .buttonStyle(PillButtonStyle(tint: Color.green.opacity(0.85), text: .black))
+                    .scaleEffect(buttonBreath ? 1.06 : 1)
                 Button("稍后 5 分钟") { app.snooze() }
                     .buttonStyle(PillButtonStyle(tint: Color.white.opacity(0.14), text: .white))
             }
         }
         .padding(.top, 38)
         .padding(.bottom, 18)
+        // 顶部交汇点残余火花：两团火在此会师，留一团脉动辉光（不越窗口边界）
+        .overlay(alignment: .top) {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [app.chinColor.opacity(0.9), app.chinColor.opacity(0.25), .clear],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 26
+                    )
+                )
+                .frame(width: 52, height: 52)
+                .offset(y: 24)
+                .scaleEffect(sparkPulse ? 1.25 : 0.7)
+                .opacity(sparkPulse ? 0.35 : 0.95)
+                .allowsHitTesting(false)
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                buttonBreath = true
+            }
+            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+                sparkPulse = true
+            }
+        }
+    }
+}
+
+/// 原地小跳：起跳 + 轻微左右倾，循环
+private struct HopInPlace: ViewModifier {
+    @State private var up = false
+
+    func body(content: Content) -> some View {
+        content
+            .offset(y: up ? -5 : 0)
+            .rotationEffect(.degrees(up ? -7 : 5))
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.32).repeatForever(autoreverses: true)) {
+                    up = true
+                }
+            }
     }
 }
 

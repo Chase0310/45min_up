@@ -14,10 +14,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var workspaceObservers: [NSObjectProtocol] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // 调试快照：离屏渲染紧凑模式 UI 到 /tmp/fuse_debug.png（系统对开孔区的截图遮罩
-        // 让屏上截图无法验证该区域，cacheDisplay 绕过合成器直接取 SwiftUI 内容）
-        if ProcessInfo.processInfo.environment["STANDUP_DEBUG_SNAPSHOT"] == "1" {
-            DebugSnapshot.writeCompact()
+        // 调试快照：离屏渲染 UI 到 /tmp/*.png（系统对开孔区的截图遮罩让屏上截图无法
+        // 验证该区域，cacheDisplay 绕过合成器直接取 SwiftUI 内容）。
+        // STANDUP_DEBUG_SNAPSHOT=1 紧凑线；=reminder 提醒横幅
+        if let mode = ProcessInfo.processInfo.environment["STANDUP_DEBUG_SNAPSHOT"], !mode.isEmpty {
+            DebugSnapshot.write(mode: mode == "reminder" ? .reminder : .compact)
             NSApp.terminate(nil)
             return
         }
@@ -176,10 +177,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 enum DebugSnapshot {
-    static func writeCompact() {
+    enum Mode { case compact, reminder }
+
+    static func write(mode: Mode) {
         let state = AppState(store: SettingsStore())
         state.notchHeight = 32
-        let size = NSSize(width: 185, height: 62) // 32 开孔 + 3 间隙 + 3.5 线 + 数字区
+        if mode == .reminder {
+            // 用公开 API 把引擎推到归零 → 提醒态
+            state.tick(now: Date().addingTimeInterval(state.engine.interval + 5))
+        }
+        let size: NSSize = mode == .reminder
+            ? NSSize(width: 420, height: 118)
+            : NSSize(width: 185, height: 84)
         let view = NSHostingView(
             rootView: NotchView(app: state).frame(width: size.width, height: size.height)
         )
@@ -201,8 +210,9 @@ enum DebugSnapshot {
         bitmap.size = size
         view.cacheDisplay(in: view.bounds, to: bitmap)
 
+        let path = mode == .reminder ? "/tmp/reminder_debug.png" : "/tmp/fuse_debug.png"
         let png = bitmap.representation(using: .png, properties: [:])!
-        try? png.write(to: URL(fileURLWithPath: "/tmp/fuse_debug.png"))
-        NSLog("45min Up: 调试快照已写入 /tmp/fuse_debug.png")
+        try? png.write(to: URL(fileURLWithPath: path))
+        NSLog("45min Up: 调试快照已写入 \(path)")
     }
 }
