@@ -91,8 +91,8 @@ final class NotchPanel: NSPanel {
     private func expandedSize(for mode: AppState.PanelMode) -> NSSize {
         switch mode {
         case .compact: return NSSize(width: 0, height: 0)
-        case .reminder: return NSSize(width: 420, height: 118)
-        case .settings: return NSSize(width: 420, height: 255)
+        case .reminder: return NSSize(width: 420, height: 140)
+        case .settings: return NSSize(width: 420, height: 275)
         }
     }
 }

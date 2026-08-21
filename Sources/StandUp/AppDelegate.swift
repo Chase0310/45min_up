@@ -187,7 +187,7 @@ enum DebugSnapshot {
             state.tick(now: Date().addingTimeInterval(state.engine.interval + 5))
         }
         let size: NSSize = mode == .reminder
-            ? NSSize(width: 420, height: 118)
+            ? NSSize(width: 420, height: 140)
             : NSSize(width: 185, height: 84)
         let view = NSHostingView(
             rootView: NotchView(app: state).frame(width: size.width, height: size.height)

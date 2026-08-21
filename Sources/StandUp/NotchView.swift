@@ -28,24 +28,24 @@ struct NotchView: View {
     }
 }
 
-/// 上边直角、下边圆角的形（顶部与屏幕顶端齐平，视觉上像刘海的延伸）；半径可调
+/// 上边直角、底部一整条碗形大圆弧的形（顶部与屏幕顶端齐平，碗底托住内容）
 private struct NotchShape: Shape {
-    var radius: CGFloat = 22
+    /// 弧的深度：两侧起点离底边的高度
+    var lift: CGFloat = 32
 
     func path(in rect: CGRect) -> Path {
-        let radius = min(radius, rect.height / 2)
+        let lift = min(lift, rect.height / 2)
         let w = rect.width
         let h = rect.height
         var path = Path()
         path.move(to: .zero)
         path.addLine(to: CGPoint(x: w, y: 0))
-        path.addLine(to: CGPoint(x: w, y: h - radius))
+        path.addLine(to: CGPoint(x: w, y: h - lift))
+        // 二次曲线：控制点在底边之下 lift 处，使中心恰好触底，形成平滑碗弧
         path.addQuadCurve(
-            to: CGPoint(x: w - radius, y: h),
-            control: CGPoint(x: w, y: h)
+            to: CGPoint(x: 0, y: h - lift),
+            control: CGPoint(x: w / 2, y: h + lift)
         )
-        path.addLine(to: CGPoint(x: radius, y: h))
-        path.addQuadCurve(to: CGPoint(x: 0, y: h - radius), control: CGPoint(x: 0, y: h))
         path.closeSubpath()
         return path
     }
@@ -220,7 +220,7 @@ private struct ReminderBanner: View {
             }
         }
         .padding(.top, 38)
-        .padding(.bottom, 18)
+        .padding(.bottom, 34)
     }
 }
 
