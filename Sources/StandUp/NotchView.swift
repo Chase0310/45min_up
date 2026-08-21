@@ -161,7 +161,7 @@ private struct BurnTip: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(Self.blueNeon.opacity(0.55))
+                .fill(BlueChin.blueNeon.opacity(0.55))
                 .frame(width: 12, height: 12)
                 .scaleEffect(pulse ? 1.4 : 0.75)
                 .opacity(pulse ? 0.05 : 0.8)
@@ -169,7 +169,7 @@ private struct BurnTip: View {
                 .fill(Color.white)
                 .frame(width: 5, height: 5)
         }
-        .shadow(color: Self.blueNeon, radius: 5)
+        .shadow(color: BlueChin.blueNeon, radius: 5)
         .opacity(paused ? 0 : 1)
         .onAppear {
             withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
@@ -177,8 +177,6 @@ private struct BurnTip: View {
             }
         }
     }
-
-    private var blueNeon: Color { BlueChin.blueNeon }
 }
 
 /// 站立提醒横幅
