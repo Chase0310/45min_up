@@ -25,7 +25,7 @@ struct NotchView: View {
 
 /// 上边直角、下边圆角的形（顶部与屏幕顶端齐平，视觉上像刘海的延伸）；半径可调
 private struct NotchShape: Shape {
-    var radius: CGFloat = 14
+    var radius: CGFloat = 22
 
     func path(in rect: CGRect) -> Path {
         let radius = min(radius, rect.height / 2)
@@ -46,21 +46,21 @@ private struct NotchShape: Shape {
     }
 }
 
-/// 紧凑模式：只有一条线——吊在刘海下方 5pt、与刘海同宽的彩色保险丝，
-/// 无任何容器底色（对比靠暗色投影，任何壁纸都成立）；悬停时下方浮现带描影的数字
+/// 紧凑模式：只有一条发丝线——贴在刘海下缘 3pt、与刘海同宽（boring.notch 收起态纪律），
+/// 无任何容器；悬停时下方浮现带描影的数字
 private struct CompactCountdown: View {
     @ObservedObject var app: AppState
 
     var body: some View {
         VStack(spacing: 0) {
-            Color.clear.frame(height: app.notchHeight + 5) // 开孔区（无像素）+ 与刘海的间隙
-            VStack(spacing: 5) {
+            Color.clear.frame(height: app.notchHeight + 3) // 开孔区（无像素）+ 与刘海的间隙
+            VStack(spacing: 4) {
                 FuseLine(
                     progress: app.progressFraction,
                     paused: app.engineState == .paused,
                     accent: app.chinColor
                 )
-                .frame(height: 7)
+                .frame(height: 2.5)
 
                 Group {
                     if app.engineState == .paused {
@@ -83,98 +83,29 @@ private struct CompactCountdown: View {
     }
 }
 
-/// 保险丝：与刘海同宽——暗槽标示满量程，亮段居中、两边向中间烧，白热燃点 + 流光；
-/// 黑色投影负责在任何壁纸上"切"出轮廓
+/// 发丝保险丝：2.5pt 圆头细线、纯色、零光晕零流光（克制即高级），
+/// 唯一特效 = 亮段从两头向中间收缩；中性灰槽在明暗壁纸都成立
 private struct FuseLine: View {
     var progress: Double
     var paused: Bool
     var accent: Color
 
-    @State private var shimmerOn = false
-
     var body: some View {
         GeometryReader { geo in
-            let width = max(geo.size.width * progress, 6)
+            let width = max(geo.size.width * progress, 4)
             ZStack {
-                // 暗槽：未燃部分（同色系暗档）
+                // 满量程槽：中性中灰，浅色/深色壁纸都可见
+                Capsule().fill(Color(white: 0.55).opacity(0.45))
+                // 亮段：居中、两边向中间烧
                 Capsule()
-                    .fill(accent.darkened(0.5).opacity(0.35))
-                    .shadow(color: .black.opacity(0.45), radius: 1.5)
-                // 亮段：居中、两边向中间收缩
-                ZStack {
-                    Capsule().fill(
-                        LinearGradient(
-                            stops: [
-                                .init(color: accent, location: 0),
-                                .init(color: accent.darkened(0.35), location: 0.25),
-                                .init(color: accent.darkened(0.7), location: 0.5),
-                                .init(color: accent.darkened(0.35), location: 0.75),
-                                .init(color: accent, location: 1),
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    HStack(spacing: 0) {
-                        BurnTip(color: accent, paused: paused)
-                        Spacer(minLength: 0)
-                        BurnTip(color: accent, paused: paused)
-                    }
-                    shimmer(width: geo.size.width)
-                }
-                .frame(width: width)
-                .shadow(color: .black.opacity(0.5), radius: 1.5)
-                .shadow(color: accent.opacity(0.9), radius: 3)
-                .opacity(paused ? 0.35 : 1)
+                    .fill(accent)
+                    .frame(width: width)
+                    .opacity(paused ? 0.35 : 1)
             }
+            .shadow(color: .black.opacity(0.35), radius: 0.8) // 浅壁纸上切出轮廓
         }
         .animation(.linear(duration: 0.5), value: progress)
-    }
-
-    private func shimmer(width: CGFloat) -> some View {
-        Capsule()
-            .fill(
-                LinearGradient(
-                    colors: [.clear, .white.opacity(0.5), .clear],
-                    startPoint: .leading, endPoint: .trailing
-                )
-            )
-            .frame(width: min(24, width))
-            .offset(x: shimmerOn ? width : -24)
-            .opacity(paused ? 0 : 1)
-            .onAppear {
-                withAnimation(.linear(duration: 1.8).repeatForever(autoreverses: false)) {
-                    shimmerOn = true
-                }
-            }
-    }
-}
-
-/// 燃烧面：径向渐变光球（白心→主题色→透明），无硬边地融进线端，呼吸脉动
-private struct BurnTip: View {
-    var color: Color
-    var paused: Bool
-
-    @State private var pulse = false
-
-    var body: some View {
-        Circle()
-            .fill(
-                RadialGradient(
-                    colors: [.white, color.opacity(0.55), .clear],
-                    center: .center,
-                    startRadius: 0,
-                    endRadius: 6.5
-                )
-            )
-            .frame(width: 13, height: 13)
-            .scaleEffect(pulse ? 1.25 : 0.85)
-            .opacity(paused ? 0 : (pulse ? 0.7 : 1))
-            .onAppear {
-                withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                    pulse = true
-                }
-            }
+        .animation(.easeInOut(duration: 0.2), value: paused)
     }
 }
 
