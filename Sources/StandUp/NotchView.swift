@@ -192,74 +192,112 @@ private struct FuseLine: View {
     }
 }
 
-/// 站立提醒横幅：原地蹦跳的小人 + 呼吸脉动的主按钮 + 顶部会师火花辉光
+/// 站立提醒横幅：奔跑的小人 + 心跳节奏的主按钮 + 顶部先炸后烬的火花
 private struct ReminderBanner: View {
     @ObservedObject var app: AppState
 
-    @State private var buttonBreath = false
     @State private var sparkPulse = false
+    @State private var burstDone = false
 
     var body: some View {
         VStack(spacing: 12) {
             HStack(spacing: 10) {
-                Text("🧍")
-                    .font(.system(size: 24))
-                    .modifier(HopInPlace())
+                RunningFigure()
                 Text("该站起来活动一下了")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
             }
             HStack(spacing: 14) {
-                Button("我站起来了") { app.acknowledge() }
-                    .buttonStyle(PillButtonStyle(tint: Color.green.opacity(0.85), text: .black))
-                    .scaleEffect(buttonBreath ? 1.06 : 1)
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { _ in
+                    Button("我站起来了") { app.acknowledge() }
+                        .buttonStyle(PillButtonStyle(tint: Color.green.opacity(0.85), text: .black))
+                        .scaleEffect(heartbeatScale)
+                }
                 Button("稍后 5 分钟") { app.snooze() }
                     .buttonStyle(PillButtonStyle(tint: Color.white.opacity(0.14), text: .white))
             }
         }
         .padding(.top, 38)
         .padding(.bottom, 18)
-        // 顶部交汇点残余火花：两团火在此会师，留一团脉动辉光（不越窗口边界）
+        // 顶部交汇点：入场先炸一圈火星（一次性），之后只剩余烬辉光脉动
         .overlay(alignment: .top) {
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [app.chinColor.opacity(0.9), app.chinColor.opacity(0.25), .clear],
-                        center: .center,
-                        startRadius: 0,
-                        endRadius: 26
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [app.chinColor.opacity(0.85), app.chinColor.opacity(0.2), .clear],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 24
+                        )
                     )
-                )
-                .frame(width: 52, height: 52)
-                .offset(y: 24)
-                .scaleEffect(sparkPulse ? 1.25 : 0.7)
-                .opacity(sparkPulse ? 0.35 : 0.95)
-                .allowsHitTesting(false)
+                    .frame(width: 48, height: 48)
+                    .offset(y: 24)
+                    .scaleEffect(sparkPulse ? 1.2 : 0.72)
+                    .opacity(sparkPulse ? 0.3 : 0.8)
+                    .allowsHitTesting(false)
+                SparkBurst(color: app.chinColor, done: burstDone)
+            }
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                buttonBreath = true
-            }
             withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
                 sparkPulse = true
             }
+            withAnimation(.easeOut(duration: 0.7)) {
+                burstDone = true
+            }
+        }
+    }
+
+    /// 真实心跳的 lub-dub 双跳曲线（周期 1s：两下快速搏动 + 静息）
+    private var heartbeatScale: CGFloat {
+        let t = Date().timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.0)
+        switch t {
+        case 0.0..<0.10: return 1.0 + 0.13 * CGFloat(t / 0.10)
+        case 0.10..<0.22: return 1.13 - 0.13 * CGFloat((t - 0.10) / 0.12)
+        case 0.34..<0.44: return 1.0 + 0.08 * CGFloat((t - 0.34) / 0.10)
+        case 0.44..<0.56: return 1.08 - 0.08 * CGFloat((t - 0.44) / 0.12)
+        default: return 1.0
         }
     }
 }
 
-/// 原地小跳：起跳 + 轻微左右倾，循环
-private struct HopInPlace: ViewModifier {
-    @State private var up = false
+/// 奔跑的小人：🏃/🚶 逐帧交替 + 左右镜像 = 翻书式原地跑
+private struct RunningFigure: View {
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 0.17)) { context in
+            let i = Int(context.date.timeIntervalSinceReferenceDate / 0.17) % 2
+            Text(i == 0 ? "🏃" : "🚶")
+                .font(.system(size: 24))
+                .scaleEffect(x: i == 0 ? 1 : -1)
+                .offset(y: i == 0 ? -2 : 1)
+        }
+    }
+}
 
-    func body(content: Content) -> some View {
-        content
-            .offset(y: up ? -5 : 0)
-            .rotationEffect(.degrees(up ? -7 : 5))
-            .onAppear {
-                withAnimation(.easeInOut(duration: 0.32).repeatForever(autoreverses: true)) {
-                    up = true
-                }
+/// 一次性火星炸裂：六粒火星向外飞散并熄灭（之后只剩余烬）
+private struct SparkBurst: View {
+    var color: Color
+    var done: Bool
+
+    // 固定伪随机角度，避免 body 内随机数
+    private let angles: [Double] = [-80, -35, 10, 55, 100, 190]
+
+    var body: some View {
+        ZStack {
+            ForEach(Array(angles.enumerated()), id: \.offset) { _, angleDeg in
+                let rad = angleDeg * .pi / 180
+                Circle()
+                    .fill(color)
+                    .frame(width: 4, height: 4)
+                    .offset(
+                        x: done ? cos(rad) * 34 : 0,
+                        y: 24 + (done ? sin(rad) * 34 : 0)
+                    )
+                    .opacity(done ? 0 : 1)
             }
+        }
+        .allowsHitTesting(false)
     }
 }
 
