@@ -62,9 +62,9 @@ final class NotchPanel: NSPanel {
         }
     }
 
-    /// 紧凑模式悬停区高度：平时放细胶囊（+4pt 间隙），悬停胶囊长高露出数字
-    static let compactIdleHeight: CGFloat = 12
-    static let compactExpandedHeight: CGFloat = 30
+    /// 紧凑模式黑色岛体高度：平时细条（贴住刘海），悬停长高露出数字
+    static let compactIdleHeight: CGFloat = 14
+    static let compactExpandedHeight: CGFloat = 34
 
     /// 无刘海机器（或只剩外接屏）时的退化：给定屏幕顶端正下方居中
     func placeFallback(on screen: NSScreen?) {

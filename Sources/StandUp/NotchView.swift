@@ -23,12 +23,14 @@ struct NotchView: View {
     }
 }
 
-/// 上边直角、下边大圆角的黑色底（顶部与屏幕顶端齐平，视觉上像刘海的延伸）
+/// 上边直角、下边圆角的底（顶部与屏幕顶端齐平，视觉上像刘海的延伸）；半径可调
 private struct NotchShape: View {
+    var radius: CGFloat = 14
+
     var body: some View {
         GeometryReader { geo in
             Path { path in
-                let radius: CGFloat = 14
+                let radius = min(radius, geo.size.height / 2)
                 let w = geo.size.width
                 let h = geo.size.height
                 path.move(to: .zero)
@@ -57,18 +59,19 @@ private struct NotchShape: View {
     }
 }
 
-/// 紧凑模式：吊在刘海下方的整体蓝色胶囊——平时是细进度条，悬停长高、数字长在蓝底里
+/// 紧凑模式：黑色"岛"与刘海底缘无缝相接（Dynamic Island 纪律：像刘海自己长出来的），
+/// 岛内嵌彩色保险丝，悬停岛体长高、白字浮现在黑岛里
 private struct CompactCountdown: View {
     @ObservedObject var app: AppState
 
     var body: some View {
         VStack(spacing: 0) {
-            Color.clear.frame(height: app.notchHeight + 4) // 开孔区（无像素）+ 呼吸间隙
-            BlueChin(
+            Color.clear.frame(height: app.notchHeight) // 开孔区（无像素）
+            CompactIsland(
                 progress: app.progressFraction,
                 paused: app.engineState == .paused,
                 hovered: app.hovered,
-                baseColor: app.chinColor,
+                accent: app.chinColor,
                 text: app.engineState == .paused
                     ? "⏸ \(app.remaining.clockString)" : app.remaining.clockString
             )
@@ -80,58 +83,71 @@ private struct CompactCountdown: View {
     }
 }
 
-/// 胶囊：暗底全宽，亮段居中、随时间从两边向中间烧，两端白热燃点呼吸脉动 + 流动高光；配色由基础色派生
-private struct BlueChin: View {
+/// 黑色岛体：顶部齐屏隐入开孔、底部圆角，纯黑壳保证与任何壁纸（含蓝壁纸）都有对比
+private struct CompactIsland: View {
     var progress: Double
     var paused: Bool
     var hovered: Bool
-    var baseColor: Color
+    var accent: Color
     var text: String
+
+    var body: some View {
+        VStack(spacing: 4) {
+            FuseLine(progress: progress, paused: paused, accent: accent)
+                .frame(height: 4)
+                .padding(.horizontal, 12)
+                .padding(.top, 5)
+            Text(text)
+                .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .opacity(hovered ? 1 : 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(
+            NotchShape(radius: hovered ? 16 : 12)
+                .fill(Color.black.opacity(0.92))
+        )
+        .animation(.easeOut(duration: 0.18), value: hovered)
+    }
+}
+
+/// 保险丝：中性暗槽 + 彩色亮段居中、两边向中间烧，白热燃点 + 流光
+private struct FuseLine: View {
+    var progress: Double
+    var paused: Bool
+    var accent: Color
 
     @State private var shimmerOn = false
 
-    private var neon: Color { baseColor }
-    private var deep: Color { baseColor.darkened(0.62) }
-
-    private var capsuleHeight: CGFloat { hovered ? 26 : 8 }
-
     var body: some View {
         GeometryReader { geo in
-            let width = max(geo.size.width * progress, 8)
+            let width = max(geo.size.width * progress, 6)
             ZStack {
-                // 暗底全宽（满量程参照）
-                Capsule().fill(deep.opacity(0.30))
+                // 暗槽：白 12%（黑岛内的中性满量程参照，不随取色变化）
+                Capsule().fill(Color.white.opacity(0.12))
                 // 亮段：居中、两边向中间收缩
                 ZStack {
                     Capsule().fill(
                         LinearGradient(
-                            colors: [neon, deep, neon],
+                            colors: [accent, accent.darkened(0.7), accent],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
-                    // 两端燃烧面
                     HStack(spacing: 0) {
-                        BurnTip(color: neon, paused: paused)
+                        BurnTip(color: accent, paused: paused)
                         Spacer(minLength: 0)
-                        BurnTip(color: neon, paused: paused)
+                        BurnTip(color: accent, paused: paused)
                     }
                     shimmer(width: geo.size.width)
                 }
                 .frame(width: width)
-                .shadow(color: neon.opacity(0.9), radius: 4)
+                .shadow(color: accent.opacity(0.9), radius: 3)
                 .opacity(paused ? 0.35 : 1)
-                // 数字长在底色里
-                Text(text)
-                    .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .opacity(hovered ? 1 : 0)
             }
-            .frame(height: capsuleHeight)
-            .animation(.easeOut(duration: 0.18), value: hovered)
-            .animation(.linear(duration: 0.5), value: progress)
         }
+        .animation(.linear(duration: 0.5), value: progress)
     }
 
     private func shimmer(width: CGFloat) -> some View {
@@ -142,8 +158,8 @@ private struct BlueChin: View {
                     startPoint: .leading, endPoint: .trailing
                 )
             )
-            .frame(width: min(28, width))
-            .offset(x: shimmerOn ? width : -28)
+            .frame(width: min(24, width))
+            .offset(x: shimmerOn ? width : -24)
             .opacity(paused ? 0 : 1)
             .onAppear {
                 withAnimation(.linear(duration: 1.8).repeatForever(autoreverses: false)) {
