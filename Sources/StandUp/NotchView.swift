@@ -79,7 +79,7 @@ private struct CompactCountdown: View {
     }
 }
 
-/// 电光蓝胶囊：暗蓝全宽底 + 随剩余时间收缩的亮蓝渐变，白热燃点、青色光晕、流动高光
+/// 深钻蓝胶囊：暗蓝全宽底，亮段居中、随时间从两边向中间烧，两端白热燃点呼吸脉动 + 流动高光
 private struct BlueChin: View {
     var progress: Double
     var paused: Bool
@@ -88,38 +88,37 @@ private struct BlueChin: View {
 
     @State private var shimmerOn = false
 
-    // 固定电光蓝，不跟随系统强调色（Graphite 用户会得到一根黑线）
-    fileprivate static let blueDeep = Color(red: 0.04, green: 0.4, blue: 1.0)
-    fileprivate static let blueNeon = Color(red: 0, green: 0.78, blue: 1.0)
+    // 固定深钻蓝系，不跟随系统强调色（Graphite 用户会得到一根黑线）
+    fileprivate static let blueDeep = Color(red: 0.0, green: 0.22, blue: 0.85)
+    fileprivate static let blueNeon = Color(red: 0.0, green: 0.55, blue: 1.0)
 
     private var capsuleHeight: CGFloat { hovered ? 26 : 8 }
 
     var body: some View {
         GeometryReader { geo in
             let width = max(geo.size.width * progress, 8)
-            ZStack(alignment: .leading) {
-                // 暗蓝全宽底（剩余量的参照）
-                Capsule().fill(Self.blueNeon.opacity(0.22))
-                // 亮蓝：随时间收缩
-                ZStack(alignment: .trailing) {
+            ZStack {
+                // 暗蓝全宽底（满量程参照）
+                Capsule().fill(Self.blueDeep.opacity(0.30))
+                // 亮段：居中、两边向中间收缩
+                ZStack {
                     Capsule().fill(
                         LinearGradient(
-                            colors: [Self.blueDeep, Self.blueNeon],
+                            colors: [Self.blueNeon, Self.blueDeep, Self.blueNeon],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
-                    // 白热燃点
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 4, height: 4)
-                        .shadow(color: Self.blueNeon, radius: 3.5)
-                        .opacity(paused ? 0 : 1)
-                    // 流动高光
+                    // 两端燃烧面
+                    HStack(spacing: 0) {
+                        BurnTip(paused: paused)
+                        Spacer(minLength: 0)
+                        BurnTip(paused: paused)
+                    }
                     shimmer(width: geo.size.width)
                 }
                 .frame(width: width)
-                .shadow(color: Self.blueNeon.opacity(0.8), radius: 3)
+                .shadow(color: Self.blueNeon.opacity(0.9), radius: 4)
                 .opacity(paused ? 0.35 : 1)
                 // 数字长在蓝底里
                 Text(text)
@@ -151,6 +150,35 @@ private struct BlueChin: View {
                 }
             }
     }
+}
+
+/// 燃烧面：白热核心 + 蓝色光晕呼吸脉动
+private struct BurnTip: View {
+    var paused: Bool
+
+    @State private var pulse = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Self.blueNeon.opacity(0.55))
+                .frame(width: 12, height: 12)
+                .scaleEffect(pulse ? 1.4 : 0.75)
+                .opacity(pulse ? 0.05 : 0.8)
+            Circle()
+                .fill(Color.white)
+                .frame(width: 5, height: 5)
+        }
+        .shadow(color: Self.blueNeon, radius: 5)
+        .opacity(paused ? 0 : 1)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+        }
+    }
+
+    private var blueNeon: Color { BlueChin.blueNeon }
 }
 
 /// 站立提醒横幅
