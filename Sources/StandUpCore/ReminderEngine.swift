@@ -57,11 +57,13 @@ public struct ReminderEngine {
         lastTick = now
     }
 
-    /// 暂停：冻结倒计时（系统睡眠或手动会议模式）
-    public mutating func pause(now: Date) {
-        guard state == .counting else { return }
+    /// 暂停：冻结倒计时（系统睡眠或手动会议模式）。仅在 counting 态生效，返回是否真的暂停了。
+    @discardableResult
+    public mutating func pause(now: Date) -> Bool {
+        guard state == .counting else { return false }
         state = .paused
         lastTick = now
+        return true
     }
 
     /// 恢复：从冻结处继续
