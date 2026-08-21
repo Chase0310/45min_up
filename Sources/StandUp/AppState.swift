@@ -40,6 +40,11 @@ final class AppState: ObservableObject {
         return min(1, max(0, remaining / total))
     }
 
+    /// 最后 1 分钟：进度线进入 urgent 高潮态
+    var isUrgent: Bool {
+        engineState == .counting && remaining <= 60
+    }
+
     init(store: SettingsStore) {
         self.store = store
         let minutes = store.intervalMinutes

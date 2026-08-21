@@ -58,7 +58,8 @@ private struct CompactCountdown: View {
                 FuseLine(
                     progress: app.progressFraction,
                     paused: app.engineState == .paused,
-                    accent: app.chinColor
+                    accent: app.chinColor,
+                    urgent: app.isUrgent
                 )
                 .frame(height: 6)
 
@@ -88,13 +89,24 @@ private struct CompactCountdown: View {
     }
 }
 
-/// 倒计时线：6pt 圆头、平色无光晕；亮段 = 纯色体 + 0.6pt 白色"霓虹管芯"
-/// （Dynamic Island 活动胶囊的做法——彩色体加亮芯，无光晕也在任何壁纸上醒目），
-/// 从两头向中间收缩；中性灰槽在明暗壁纸都成立
+/// 倒计时线：6pt 圆头，亮段 = 纯色体 + 白色管芯 + 主题色辉光，
+/// 两端柔光火苗呼吸脉动 + 高光能量流；最后 1 分钟进入 urgent 高潮
+/// （火苗狂跳、管芯炽白偏橙、光晕加强）；从两头向中间收缩
 private struct FuseLine: View {
     var progress: Double
     var paused: Bool
     var accent: Color
+    var urgent: Bool
+
+    @State private var shimmerOn = false
+    @State private var flamePulse = false
+
+    private var coreColor: Color {
+        urgent ? Color(red: 1, green: 0.82, blue: 0.55) : Color.white.opacity(0.85)
+    }
+    private var glowColor: Color {
+        urgent ? Color(red: 1, green: 0.55, blue: 0.2) : accent
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -106,17 +118,72 @@ private struct FuseLine: View {
                 ZStack {
                     Capsule().fill(accent)
                     Capsule()
-                        .fill(Color.white.opacity(0.85))
+                        .fill(coreColor)
                         .frame(height: 1.2) // 管芯
                         .padding(.horizontal, 3)
+                    // 两端火苗
+                    HStack(spacing: 0) {
+                        flame
+                        Spacer(minLength: 0)
+                        flame
+                    }
+                    // 能量流
+                    shimmer(width: geo.size.width)
                 }
                 .frame(width: width)
+                .shadow(color: glowColor.opacity(urgent ? 1 : 0.8), radius: urgent ? 5 : 3)
                 .opacity(paused ? 0.35 : 1)
             }
             .shadow(color: .black.opacity(0.4), radius: 1) // 浅壁纸上切出轮廓
         }
         .animation(.linear(duration: 0.5), value: progress)
         .animation(.easeInOut(duration: 0.2), value: paused)
+    }
+
+    /// 端点火苗：柔光径向渐变，呼吸脉动（urgent 时倍速狂跳）
+    private var flame: some View {
+        Circle()
+            .fill(
+                RadialGradient(
+                    colors: [coreColor, glowColor.opacity(0.55), .clear],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: 5.5
+                )
+            )
+            .frame(width: 11, height: 11)
+            .scaleEffect(flamePulse ? 1.3 : 0.8)
+            .opacity(paused ? 0 : (flamePulse ? 0.6 : 1))
+            .onAppear {
+                withAnimation(
+                    .easeInOut(duration: urgent ? 0.4 : 0.9)
+                        .repeatForever(autoreverses: true)
+                ) {
+                    flamePulse = true
+                }
+            }
+    }
+
+    /// 高光能量流：一段白光周期性从线头扫到线尾
+    private func shimmer(width: CGFloat) -> some View {
+        Capsule()
+            .fill(
+                LinearGradient(
+                    colors: [.clear, Color.white.opacity(urgent ? 0.7 : 0.45), .clear],
+                    startPoint: .leading, endPoint: .trailing
+                )
+            )
+            .frame(width: min(26, width))
+            .offset(x: shimmerOn ? width : -26)
+            .opacity(paused ? 0 : 1)
+            .onAppear {
+                withAnimation(
+                    .linear(duration: urgent ? 0.8 : 1.6)
+                        .repeatForever(autoreverses: false)
+                ) {
+                    shimmerOn = true
+                }
+            }
     }
 }
 
