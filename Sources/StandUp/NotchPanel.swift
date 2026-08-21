@@ -4,7 +4,7 @@ import SwiftUI
 /// 非激活窗口的第一次点击默认只激活窗口、不投递给内容
 /// （这就是"要点两下"的根源）——必须显式接受首击
 final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
-    override func acceptsFirstMouse(_ event: NSEvent?) -> Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 /// 刘海区域的无边框面板：状态栏层级、跨所有空间、全屏之上可见。
