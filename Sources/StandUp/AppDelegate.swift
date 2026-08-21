@@ -27,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         app = AppState(store: SettingsStore())
 
         panel = NotchPanel()
-        panel.contentView = NSHostingView(rootView: NotchView(app: app))
+        panel.contentView = FirstMouseHostingView(rootView: NotchView(app: app))
         panel.orderFrontRegardless()
         relayout()
 
