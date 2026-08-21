@@ -62,20 +62,23 @@ private struct CompactCountdown: View {
                 )
                 .frame(height: 6)
 
-                Group {
-                    if app.engineState == .paused {
-                        Text("⏸ \(app.remaining.clockString)")
-                    } else {
-                        Text(app.remaining.clockString)
+                if app.hovered {
+                    Group {
+                        if app.engineState == .paused {
+                            Text("⏸ \(app.remaining.clockString)")
+                        } else {
+                            Text(app.remaining.clockString)
+                        }
                     }
+                    .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.85), radius: 2.5) // 无底色容器的可读性
+                    .transition(.opacity)
                 }
-                .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
-                .foregroundColor(.white)
-                .shadow(color: .black.opacity(0.85), radius: 2.5) // 无底色容器的可读性
-                .opacity(app.hovered ? 1 : 0)
             }
-            // padding 定位（刘海开孔高度 + 2pt 间隙），不参与布局高度计算，永不把线挤出窗口
-            .padding(.top, app.notchHeight + 2)
+            // padding 定位：刘海开孔高度 + 16pt 间隙——macOS 26 在开孔正下方有系统级
+            // 遮挡带（实测逻辑 y≈33-44+），线必须落在带之下才真实可见
+            .padding(.top, app.notchHeight + 16)
             .animation(.easeOut(duration: 0.18), value: app.hovered)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
