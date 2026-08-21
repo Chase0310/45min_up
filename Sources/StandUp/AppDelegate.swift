@@ -14,6 +14,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var workspaceObservers: [NSObjectProtocol] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 调试快照：离屏渲染紧凑模式 UI 到 /tmp/fuse_debug.png（系统对开孔区的截图遮罩
+        // 让屏上截图无法验证该区域，cacheDisplay 绕过合成器直接取 SwiftUI 内容）
+        if ProcessInfo.processInfo.environment["STANDUP_DEBUG_SNAPSHOT"] == "1" {
+            DebugSnapshot.writeCompact()
+            NSApp.terminate(nil)
+            return
+        }
+
         app = AppState(store: SettingsStore())
 
         panel = NotchPanel()
@@ -158,5 +166,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let error { NSLog("45min Up: 通知授权失败 \(error.localizedDescription)") }
             if !granted { NSLog("45min Up: 通知未授权，兜底通道不可用（刘海提醒不受影响）") }
         }
+    }
+}
+
+enum DebugSnapshot {
+    static func writeCompact() {
+        let state = AppState(store: SettingsStore())
+        state.notchHeight = 32
+        let size = NSSize(width: 185, height: 62) // 32 开孔 + 3 间隙 + 3.5 线 + 数字区
+        let view = NSHostingView(
+            rootView: NotchView(app: state).frame(width: size.width, height: size.height)
+        )
+        view.frame = NSRect(origin: .zero, size: size)
+        view.layoutSubtreeIfNeeded()
+
+        let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(size.width) * 2,
+            pixelsHigh: Int(size.height) * 2,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        )!
+        bitmap.size = size
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+
+        let png = bitmap.representation(using: .png, properties: [:])!
+        try? png.write(to: URL(fileURLWithPath: "/tmp/fuse_debug.png"))
+        NSLog("45min Up: 调试快照已写入 /tmp/fuse_debug.png")
     }
 }

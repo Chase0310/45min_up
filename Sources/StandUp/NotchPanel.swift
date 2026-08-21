@@ -62,9 +62,9 @@ final class NotchPanel: NSPanel {
         }
     }
 
-    /// 紧凑模式可见条高度：平时 3pt 间隙 + 2.5pt 发丝线，悬停多出一行数字
-    static let compactIdleHeight: CGFloat = 8
-    static let compactExpandedHeight: CGFloat = 26
+    /// 紧凑模式可见条高度：平时 3pt 间隙 + 3.5pt 线，悬停多出一行数字
+    static let compactIdleHeight: CGFloat = 12
+    static let compactExpandedHeight: CGFloat = 28
 
     /// 无刘海机器（或只剩外接屏）时的退化：给定屏幕顶端正下方居中
     func placeFallback(on screen: NSScreen?) {

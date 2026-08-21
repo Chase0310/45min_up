@@ -52,15 +52,15 @@ private struct CompactCountdown: View {
     @ObservedObject var app: AppState
 
     var body: some View {
-        VStack(spacing: 0) {
-            Color.clear.frame(height: app.notchHeight + 3) // 开孔区（无像素）+ 与刘海的间隙
+        ZStack(alignment: .top) {
+            Color.clear
             VStack(spacing: 4) {
                 FuseLine(
                     progress: app.progressFraction,
                     paused: app.engineState == .paused,
                     accent: app.chinColor
                 )
-                .frame(height: 2.5)
+                .frame(height: 3.5)
 
                 Group {
                     if app.engineState == .paused {
@@ -74,9 +74,11 @@ private struct CompactCountdown: View {
                 .shadow(color: .black.opacity(0.85), radius: 2.5) // 无底色容器的可读性
                 .opacity(app.hovered ? 1 : 0)
             }
-            .frame(maxHeight: .infinity, alignment: .top)
+            // padding 定位（刘海开孔高度 + 3pt 间隙），不参与布局高度计算，永不把线挤出窗口
+            .padding(.top, app.notchHeight + 3)
             .animation(.easeOut(duration: 0.18), value: app.hovered)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .onTapGesture { app.toggleSettings() }
         .onHover { app.setHover($0) }
