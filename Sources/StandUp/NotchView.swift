@@ -61,15 +61,17 @@ private struct CompactCountdown: View {
             Color.clear
             VStack(spacing: 0) {
                 FuseBowl(
-                    progress: app.progressFraction,
+                    progress: app.isOnBreak ? app.breakFraction : app.progressFraction,
                     paused: app.engineState == .paused,
-                    accent: app.chinColor
+                    accent: app.isOnBreak ? Color(red: 0.19, green: 0.82, blue: 0.35) : app.chinColor
                 )
                 .frame(height: 6)
 
                 if app.hovered {
                     Group {
-                        if app.engineState == .paused {
+                        if app.isOnBreak {
+                            Text("🧍 \(app.engine.breakRemaining.clockString)")
+                        } else if app.engineState == .paused {
                             Text("⏸ \(app.remaining.clockString)")
                         } else {
                             Text(app.remaining.clockString)
@@ -133,7 +135,7 @@ private struct ReminderBanner: View {
                     Text("该站起来活动一下了")
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .foregroundColor(.white)
-                    Text("你已经坐了 \(Int(app.engine.interval / 60)) 分钟")
+                    Text("你已经坐了 \(Int(app.engine.interval / 60)) 分钟，站 \(Int(app.breakMinutes)) 分钟")
                         .font(.system(size: 11, design: .rounded))
                         .foregroundColor(.white.opacity(0.55))
                 }
@@ -206,6 +208,32 @@ private struct SettingsPanel: View {
                 .buttonStyle(PlainButtonStyle())
                 .foregroundColor(.white)
             }
+
+            HStack {
+                Text("站立时长")
+                    .font(.system(size: 12, design: .rounded))
+                    .foregroundColor(.white.opacity(0.7))
+                Spacer()
+                Button {
+                    app.breakMinutes -= 1
+                } label: {
+                    Image(systemName: "minus.circle")
+                }
+                .buttonStyle(PlainButtonStyle())
+                .foregroundColor(.white)
+                Text("\(Int(app.breakMinutes)) 分钟")
+                    .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
+                    .foregroundColor(.white)
+                    .frame(minWidth: 52)
+                Button {
+                    app.breakMinutes += 1
+                } label: {
+                    Image(systemName: "plus.circle")
+                }
+                .buttonStyle(PlainButtonStyle())
+                .foregroundColor(.white)
+            }
+            .padding(.horizontal, 4)
 
             HStack {
                 Text("线条颜色")

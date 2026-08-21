@@ -51,13 +51,13 @@ it("归零进入提醒态且事件只发一次") {
     try expect(events.isEmpty, "提醒态继续 advance 不应再发事件，实际 \(events)")
 }
 
-// Cycle 4: 确认（我站起来了）→ 从完整间隔重新起算
-it("确认后倒计时归整重来") {
-    var engine = ReminderEngine(interval: 45 * minute, now: t0)
+// Cycle 4: 确认（我站起来了）→ 进入站立休息阶段
+it("确认后进入站立休息") {
+    var engine = ReminderEngine(interval: 45 * minute, breakInterval: 5 * minute, now: t0)
     _ = engine.advance(to: t0.addingTimeInterval(45 * minute))
-    engine.acknowledge(now: t0.addingTimeInterval(45 * minute + 5))
-    try expect(engine.state == .counting, "确认后应回到 counting，实际 \(engine.state)")
-    try expect(engine.remaining == 45 * minute, "确认后应恢复完整间隔，实际 \(engine.remaining)")
+    engine.acknowledge(now: t0.addingTimeInterval(45 * minute + 2))
+    try expect(engine.state == .breaking, "确认后应进入 breaking，实际 \(engine.state)")
+    try expect(engine.breakRemaining == 5 * minute, "休息应从满额 5 分钟开始，实际 \(engine.breakRemaining)")
 }
 
 // Cycle 5: 稍后 = 推迟 5 分钟再次提醒
@@ -110,6 +110,41 @@ it("点击当前间隔立即整轮重来") {
     engine.setInterval(30 * minute, now: t0.addingTimeInterval(15 * minute)) // 同值重设
     try expect(engine.remaining == 30 * minute, "同值重设应立即回到满间隔，实际剩 \(engine.remaining)")
     try expect(engine.state == .counting, "同值重设后应 counting，实际 \(engine.state)")
+}
+
+// Cycle 10: 休息结束 → 下一轮自动开始，breakEnded 只发一次
+it("休息结束自动开始下一轮") {
+    var engine = ReminderEngine(interval: 30 * minute, breakInterval: 5 * minute, now: t0)
+    _ = engine.advance(to: t0.addingTimeInterval(30 * minute))
+    engine.acknowledge(now: t0.addingTimeInterval(30 * minute))
+    var events = engine.advance(to: t0.addingTimeInterval(30 * minute + 5 * minute))
+    try expect(events == [.breakEnded], "休息耗尽应发一次 breakEnded，实际 \(events)")
+    try expect(engine.state == .counting, "休息结束应自动回 counting，实际 \(engine.state)")
+    try expect(engine.remaining == 30 * minute, "下一轮应满额 30 分钟，实际 \(engine.remaining)")
+    events = engine.advance(to: t0.addingTimeInterval(30 * minute + 5 * minute + 10))
+    try expect(events.isEmpty, "结束后不应再发事件，实际 \(events)")
+}
+
+// Cycle 11: 休息中改间隔 = 取消休息、新间隔整轮重来
+it("休息中改间隔取消休息") {
+    var engine = ReminderEngine(interval: 30 * minute, breakInterval: 5 * minute, now: t0)
+    _ = engine.advance(to: t0.addingTimeInterval(30 * minute))
+    engine.acknowledge(now: t0.addingTimeInterval(30 * minute))
+    _ = engine.advance(to: t0.addingTimeInterval(30 * minute + minute))
+    engine.setInterval(20 * minute, now: t0.addingTimeInterval(30 * minute + minute))
+    try expect(engine.state == .counting, "改间隔应取消休息回到 counting，实际 \(engine.state)")
+    try expect(engine.remaining == 20 * minute, "应按新间隔满额，实际 \(engine.remaining)")
+}
+
+// Cycle 12: 休息时长可调，进行中即时生效
+it("休息时长进行中可调") {
+    var engine = ReminderEngine(interval: 30 * minute, breakInterval: 5 * minute, now: t0)
+    _ = engine.advance(to: t0.addingTimeInterval(30 * minute))
+    engine.acknowledge(now: t0.addingTimeInterval(30 * minute))
+    engine.setBreakInterval(10 * minute, now: t0.addingTimeInterval(30 * minute))
+    try expect(engine.breakRemaining == 5 * minute, "调长不休整当前进度（仍剩 5 分钟），实际 \(engine.breakRemaining)")
+    engine.setBreakInterval(2 * minute, now: t0.addingTimeInterval(30 * minute))
+    try expect(engine.breakRemaining == 2 * minute, "调短应立即截断到 2 分钟，实际 \(engine.breakRemaining)")
 }
 
 print("\n\(total - failed)/\(total) 通过")

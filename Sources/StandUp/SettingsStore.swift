@@ -25,6 +25,15 @@ struct SettingsStore {
         set { defaults.set(newValue, forKey: Keys.accent) }
     }
 
+    /// 站立休息时长（分钟）
+    var breakMinutes: Double {
+        get {
+            let v = defaults.double(forKey: Keys.breakMinutes)
+            return (1...30).contains(v) ? v : 5
+        }
+        set { defaults.set(min(30, max(1, newValue)), forKey: Keys.breakMinutes) }
+    }
+
     /// 线条与刘海底缘的间隙（pt）。macOS 26 开孔正下方有系统遮挡带（实测到 ~12pt），
     /// 默认 13 刚好出带；用户可按自己屏幕观感微调
     var notchGap: Double {
@@ -41,5 +50,6 @@ struct SettingsStore {
         static let interval = "com.chase0310.45minup.interval"
         static let accent = "com.chase0310.45minup.accent"
         static let gap = "com.chase0310.45minup.gap"
+        static let breakMinutes = "com.chase0310.45minup.breakminutes"
     }
 }

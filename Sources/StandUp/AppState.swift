@@ -33,6 +33,13 @@ final class AppState: ObservableObject {
     @Published var notchGap: Double {
         didSet { store.notchGap = notchGap }
     }
+    /// 站立休息时长（分钟，写入即持久化，休息中即时生效）
+    @Published var breakMinutes: Double {
+        didSet {
+            store.breakMinutes = breakMinutes
+            engine.setBreakInterval(breakMinutes * 60, now: Date())
+        }
+    }
 
     /// 剩余进度 0…1（进度线宽度用）
     var progressFraction: Double {
@@ -40,16 +47,29 @@ final class AppState: ObservableObject {
         return min(1, max(0, remaining / total))
     }
 
+    var isOnBreak: Bool { engineState == .breaking }
+
+    /// 休息剩余进度 0…1
+    var breakFraction: Double {
+        let total = engine.breakInterval > 0 ? engine.breakInterval : 1
+        return min(1, max(0, engine.breakRemaining / total))
+    }
+
 
     init(store: SettingsStore) {
         self.store = store
         let minutes = store.intervalMinutes
-        self.engine = ReminderEngine(interval: minutes * 60, now: Date())
+        self.engine = ReminderEngine(
+            interval: minutes * 60,
+            breakInterval: store.breakMinutes * 60,
+            now: Date()
+        )
         self.remaining = engine.remaining
         self.engineState = engine.state
         self.intervalMinutes = minutes
         self.chinColor = Color(hex: store.accentHex)
         self.notchGap = store.notchGap
+        self.breakMinutes = store.breakMinutes
     }
 
     func startTimer() {
@@ -66,6 +86,10 @@ final class AppState: ObservableObject {
             panelMode = .reminder
             Sound.play()
             postNotificationFallback()
+        }
+        if events.contains(.breakEnded) {
+            // 休息结束：轻提示音即可，不开横幅（白噪音哲学：下一轮悄悄开始）
+            Sound.playBreakEnd()
         }
     }
 
@@ -186,6 +210,14 @@ enum Sound {
             sound.play()
         } else {
             NSSound.beep()
+        }
+    }
+
+    /// 休息结束的轻提示（比提醒音温和）
+    static func playBreakEnd() {
+        if let sound = NSSound(named: "Tink") ?? NSSound(named: "Glass") {
+            sound.volume = 0.5
+            sound.play()
         }
     }
 }
