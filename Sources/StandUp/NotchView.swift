@@ -46,23 +46,36 @@ private struct NotchShape: Shape {
     }
 }
 
-/// 紧凑模式：黑色"岛"与刘海底缘无缝相接（Dynamic Island 纪律：像刘海自己长出来的），
-/// 岛内嵌彩色保险丝，悬停岛体长高、白字浮现在黑岛里
+/// 紧凑模式：只有一条线——吊在刘海下方 5pt、与刘海同宽的彩色保险丝，
+/// 无任何容器底色（对比靠暗色投影，任何壁纸都成立）；悬停时下方浮现带描影的数字
 private struct CompactCountdown: View {
     @ObservedObject var app: AppState
 
     var body: some View {
         VStack(spacing: 0) {
-            Color.clear.frame(height: app.notchHeight) // 开孔区（无像素）
-            CompactIsland(
-                progress: app.progressFraction,
-                paused: app.engineState == .paused,
-                hovered: app.hovered,
-                accent: app.chinColor,
-                text: app.engineState == .paused
-                    ? "⏸ \(app.remaining.clockString)" : app.remaining.clockString
-            )
+            Color.clear.frame(height: app.notchHeight + 5) // 开孔区（无像素）+ 与刘海的间隙
+            VStack(spacing: 5) {
+                FuseLine(
+                    progress: app.progressFraction,
+                    paused: app.engineState == .paused,
+                    accent: app.chinColor
+                )
+                .frame(height: 7)
+
+                Group {
+                    if app.engineState == .paused {
+                        Text("⏸ \(app.remaining.clockString)")
+                    } else {
+                        Text(app.remaining.clockString)
+                    }
+                }
+                .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
+                .foregroundColor(.white)
+                .shadow(color: .black.opacity(0.85), radius: 2.5) // 无底色容器的可读性
+                .opacity(app.hovered ? 1 : 0)
+            }
             .frame(maxHeight: .infinity, alignment: .top)
+            .animation(.easeOut(duration: 0.18), value: app.hovered)
         }
         .contentShape(Rectangle())
         .onTapGesture { app.toggleSettings() }
@@ -70,36 +83,8 @@ private struct CompactCountdown: View {
     }
 }
 
-/// 黑色岛体：顶部齐屏隐入开孔、底部圆角，纯黑壳保证与任何壁纸（含蓝壁纸）都有对比
-private struct CompactIsland: View {
-    var progress: Double
-    var paused: Bool
-    var hovered: Bool
-    var accent: Color
-    var text: String
-
-    var body: some View {
-        VStack(spacing: 4) {
-            FuseLine(progress: progress, paused: paused, accent: accent)
-                .frame(height: 4)
-                .padding(.horizontal, 12)
-                .padding(.top, 5)
-            Text(text)
-                .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .opacity(hovered ? 1 : 0)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(
-            NotchShape(radius: hovered ? 16 : 12)
-                .fill(Color.black.opacity(0.92))
-        )
-        .animation(.easeOut(duration: 0.18), value: hovered)
-    }
-}
-
-/// 保险丝：中性暗槽 + 彩色亮段居中、两边向中间烧，白热燃点 + 流光
+/// 保险丝：与刘海同宽——暗槽标示满量程，亮段居中、两边向中间烧，白热燃点 + 流光；
+/// 黑色投影负责在任何壁纸上"切"出轮廓
 private struct FuseLine: View {
     var progress: Double
     var paused: Bool
@@ -111,13 +96,21 @@ private struct FuseLine: View {
         GeometryReader { geo in
             let width = max(geo.size.width * progress, 6)
             ZStack {
-                // 暗槽：白 12%（黑岛内的中性满量程参照，不随取色变化）
-                Capsule().fill(Color.white.opacity(0.12))
+                // 暗槽：未燃部分（同色系暗档）
+                Capsule()
+                    .fill(accent.darkened(0.5).opacity(0.35))
+                    .shadow(color: .black.opacity(0.45), radius: 1.5)
                 // 亮段：居中、两边向中间收缩
                 ZStack {
                     Capsule().fill(
                         LinearGradient(
-                            colors: [accent, accent.darkened(0.7), accent],
+                            stops: [
+                                .init(color: accent, location: 0),
+                                .init(color: accent.darkened(0.35), location: 0.25),
+                                .init(color: accent.darkened(0.7), location: 0.5),
+                                .init(color: accent.darkened(0.35), location: 0.75),
+                                .init(color: accent, location: 1),
+                            ],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -130,6 +123,7 @@ private struct FuseLine: View {
                     shimmer(width: geo.size.width)
                 }
                 .frame(width: width)
+                .shadow(color: .black.opacity(0.5), radius: 1.5)
                 .shadow(color: accent.opacity(0.9), radius: 3)
                 .opacity(paused ? 0.35 : 1)
             }
@@ -156,7 +150,7 @@ private struct FuseLine: View {
     }
 }
 
-/// 燃烧面：白热核心 + 基础色光晕呼吸脉动
+/// 燃烧面：径向渐变光球（白心→主题色→透明），无硬边地融进线端，呼吸脉动
 private struct BurnTip: View {
     var color: Color
     var paused: Bool
@@ -164,23 +158,23 @@ private struct BurnTip: View {
     @State private var pulse = false
 
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(color.opacity(0.55))
-                .frame(width: 12, height: 12)
-                .scaleEffect(pulse ? 1.4 : 0.75)
-                .opacity(pulse ? 0.05 : 0.8)
-            Circle()
-                .fill(Color.white)
-                .frame(width: 5, height: 5)
-        }
-        .shadow(color: color, radius: 5)
-        .opacity(paused ? 0 : 1)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                pulse = true
+        Circle()
+            .fill(
+                RadialGradient(
+                    colors: [.white, color.opacity(0.55), .clear],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: 6.5
+                )
+            )
+            .frame(width: 13, height: 13)
+            .scaleEffect(pulse ? 1.25 : 0.85)
+            .opacity(paused ? 0 : (pulse ? 0.7 : 1))
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                    pulse = true
+                }
             }
-        }
     }
 }
 
