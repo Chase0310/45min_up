@@ -267,6 +267,8 @@ private struct SettingsPanel: View {
             Divider().overlay(Color.white.opacity(0.12))
 
             HStack(spacing: 10) {
+                Button("重新计时") { app.restartRound() }
+                    .buttonStyle(PillButtonStyle(tint: Color.white.opacity(0.14), text: .white))
                 Button(app.engineState == .paused ? "继续" : "暂停") { app.togglePause() }
                     .buttonStyle(PillButtonStyle(tint: Color.white.opacity(0.14), text: .white))
                 Button("开机自启动：\(app.launchAtLogin ? "开" : "关")") { app.toggleLaunchAtLogin() }

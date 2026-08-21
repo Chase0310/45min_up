@@ -105,6 +105,13 @@ final class AppState: ObservableObject {
         sync()
     }
 
+    /// 重新计时：不管进行到哪，当前间隔从头再来
+    func restartRound() {
+        userPaused = false
+        engine.setInterval(engine.interval, now: Date())
+        sync()
+    }
+
     func setInterval(minutes: Double) {
         // 5–240 收敛在唯一的写入边界做，视图层不必各自防御
         let clamped = min(240, max(5, minutes))

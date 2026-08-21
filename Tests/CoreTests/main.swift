@@ -103,5 +103,14 @@ it("时钟回拨被忽略") {
     try expect(engine.remaining == 9 * minute, "回拨不应改变剩余，应仍剩 9 分钟，实际 \(engine.remaining)")
 }
 
+// Cycle 9: 点击与当前相同的间隔 = 立即整轮重来（免得用户被迫切走再切回）
+it("点击当前间隔立即整轮重来") {
+    var engine = ReminderEngine(interval: 30 * minute, now: t0)
+    _ = engine.advance(to: t0.addingTimeInterval(15 * minute))
+    engine.setInterval(30 * minute, now: t0.addingTimeInterval(15 * minute)) // 同值重设
+    try expect(engine.remaining == 30 * minute, "同值重设应立即回到满间隔，实际剩 \(engine.remaining)")
+    try expect(engine.state == .counting, "同值重设后应 counting，实际 \(engine.state)")
+}
+
 print("\n\(total - failed)/\(total) 通过")
 if failed > 0 { exit(1) }
