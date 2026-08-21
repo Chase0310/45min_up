@@ -101,14 +101,16 @@ private struct FuseBowl: View {
     var accent: Color
 
     var body: some View {
-        let p = min(max(progress, 0.04), 1)
-        let stroke = StrokeStyle(lineWidth: 6, lineCap: .round)
-        return ZStack {
-            Capsule()
-                .stroke(Color(white: 0.55).opacity(0.4), style: stroke)
-            Capsule()
-                .trim(from: (1 - p) / 2, to: (1 + p) / 2)
-                .stroke(accent.opacity(paused ? 0.35 : 0.9), style: stroke)
+        GeometryReader { geo in
+            let width = max(geo.size.width * min(max(progress, 0.04), 1), 6)
+            ZStack {
+                // 满量程：填充的体育场条（不是描轮廓）
+                Capsule().fill(Color(white: 0.55).opacity(0.4))
+                // 亮段：居中的一段，从两端向中间缩
+                Capsule()
+                    .fill(accent.opacity(paused ? 0.35 : 0.9))
+                    .frame(width: width)
+            }
         }
         .shadow(color: .black.opacity(0.35), radius: 0.8)
         .animation(.linear(duration: 0.5), value: progress)
