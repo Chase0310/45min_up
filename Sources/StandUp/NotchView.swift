@@ -68,6 +68,7 @@ private struct CompactCountdown: View {
                 progress: app.progressFraction,
                 paused: app.engineState == .paused,
                 hovered: app.hovered,
+                baseColor: app.chinColor,
                 text: app.engineState == .paused
                     ? "⏸ \(app.remaining.clockString)" : app.remaining.clockString
             )
@@ -79,18 +80,18 @@ private struct CompactCountdown: View {
     }
 }
 
-/// 深钻蓝胶囊：暗蓝全宽底，亮段居中、随时间从两边向中间烧，两端白热燃点呼吸脉动 + 流动高光
+/// 胶囊：暗底全宽，亮段居中、随时间从两边向中间烧，两端白热燃点呼吸脉动 + 流动高光；配色由基础色派生
 private struct BlueChin: View {
     var progress: Double
     var paused: Bool
     var hovered: Bool
+    var baseColor: Color
     var text: String
 
     @State private var shimmerOn = false
 
-    // 固定深钻蓝系，不跟随系统强调色（Graphite 用户会得到一根黑线）
-    fileprivate static let blueDeep = Color(red: 0.0, green: 0.22, blue: 0.85)
-    fileprivate static let blueNeon = Color(red: 0.0, green: 0.55, blue: 1.0)
+    private var neon: Color { baseColor }
+    private var deep: Color { baseColor.darkened(0.62) }
 
     private var capsuleHeight: CGFloat { hovered ? 26 : 8 }
 
@@ -98,29 +99,29 @@ private struct BlueChin: View {
         GeometryReader { geo in
             let width = max(geo.size.width * progress, 8)
             ZStack {
-                // 暗蓝全宽底（满量程参照）
-                Capsule().fill(Self.blueDeep.opacity(0.30))
+                // 暗底全宽（满量程参照）
+                Capsule().fill(deep.opacity(0.30))
                 // 亮段：居中、两边向中间收缩
                 ZStack {
                     Capsule().fill(
                         LinearGradient(
-                            colors: [Self.blueNeon, Self.blueDeep, Self.blueNeon],
+                            colors: [neon, deep, neon],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
                     // 两端燃烧面
                     HStack(spacing: 0) {
-                        BurnTip(paused: paused)
+                        BurnTip(color: neon, paused: paused)
                         Spacer(minLength: 0)
-                        BurnTip(paused: paused)
+                        BurnTip(color: neon, paused: paused)
                     }
                     shimmer(width: geo.size.width)
                 }
                 .frame(width: width)
-                .shadow(color: Self.blueNeon.opacity(0.9), radius: 4)
+                .shadow(color: neon.opacity(0.9), radius: 4)
                 .opacity(paused ? 0.35 : 1)
-                // 数字长在蓝底里
+                // 数字长在底色里
                 Text(text)
                     .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
                     .foregroundColor(.white)
@@ -152,8 +153,9 @@ private struct BlueChin: View {
     }
 }
 
-/// 燃烧面：白热核心 + 蓝色光晕呼吸脉动
+/// 燃烧面：白热核心 + 基础色光晕呼吸脉动
 private struct BurnTip: View {
+    var color: Color
     var paused: Bool
 
     @State private var pulse = false
@@ -161,7 +163,7 @@ private struct BurnTip: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(BlueChin.blueNeon.opacity(0.55))
+                .fill(color.opacity(0.55))
                 .frame(width: 12, height: 12)
                 .scaleEffect(pulse ? 1.4 : 0.75)
                 .opacity(pulse ? 0.05 : 0.8)
@@ -169,7 +171,7 @@ private struct BurnTip: View {
                 .fill(Color.white)
                 .frame(width: 5, height: 5)
         }
-        .shadow(color: BlueChin.blueNeon, radius: 5)
+        .shadow(color: color, radius: 5)
         .opacity(paused ? 0 : 1)
         .onAppear {
             withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
@@ -249,6 +251,17 @@ private struct SettingsPanel: View {
                 .foregroundColor(.white)
             }
 
+            HStack {
+                Text("线条颜色")
+                    .font(.system(size: 12, design: .rounded))
+                    .foregroundColor(.white.opacity(0.7))
+                Spacer()
+                ColorPicker("", selection: $app.chinColor, supportsOpacity: false)
+                    .labelsHidden()
+                    .frame(width: 56)
+            }
+            .padding(.horizontal, 4)
+
             Divider().overlay(Color.white.opacity(0.12))
 
             HStack(spacing: 10) {
@@ -289,5 +302,48 @@ extension TimeInterval {
         let s = total % 60
         if h > 0 { return String(format: "%d:%02d:%02d", h, m, s) }
         return String(format: "%02d:%02d", m, s)
+    }
+}
+
+extension Color {
+    /// "#RRGGBB" → Color（坏字符串回落默认钻蓝）
+    init(hex: String) {
+        var value: UInt64 = 0
+        var cleaned = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        if cleaned.count != 6 || !Scanner(string: cleaned).scanHexInt64(&value) {
+            cleaned = String(SettingsStore.defaultAccentHex.dropFirst())
+            Scanner(string: cleaned).scanHexInt64(&value)
+        }
+        self.init(
+            red: Double((value >> 16) & 0xFF) / 255,
+            green: Double((value >> 8) & 0xFF) / 255,
+            blue: Double(value & 0xFF) / 255
+        )
+    }
+
+    /// Color → "#RRGGBB"
+    var hexString: String {
+        guard let rgb = NSColor(self).usingColorSpace(.deviceRGB) else {
+            return SettingsStore.defaultAccentHex
+        }
+        return String(
+            format: "#%02X%02X%02X",
+            Int(round(rgb.redComponent * 255)),
+            Int(round(rgb.greenComponent * 255)),
+            Int(round(rgb.blueComponent * 255))
+        )
+    }
+
+    /// 降亮度派生深色档（饱和度略提，避免发灰）
+    func darkened(_ factor: Double) -> Color {
+        guard let rgb = NSColor(self).usingColorSpace(.deviceRGB) else { return self }
+        var hue: CGFloat = 0, saturation: CGFloat = 0, brightness: CGFloat = 0, alpha: CGFloat = 0
+        rgb.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+        return Color(
+            hue: Double(hue),
+            saturation: Double(min(1, saturation * 1.15)),
+            brightness: Double(max(0, brightness * factor)),
+            opacity: Double(alpha)
+        )
     }
 }

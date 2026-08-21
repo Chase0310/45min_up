@@ -1,6 +1,7 @@
 import AppKit
 import ServiceManagement
 import StandUpCore
+import SwiftUI
 import UserNotifications
 
 /// 引擎与 UI 之间的桥：驱动 tick、响应事件（提示音/系统通知/横幅）、暴露面板模式。
@@ -24,6 +25,10 @@ final class AppState: ObservableObject {
     @Published var notchHeight: CGFloat = 32
     /// 鼠标是否悬停在紧凑区（悬停才显示数字）
     @Published var hovered = false
+    /// 线条基础色（用户 DIY，写入即持久化）
+    @Published var chinColor: Color {
+        didSet { store.accentHex = chinColor.hexString }
+    }
 
     /// 剩余进度 0…1（进度线宽度用）
     var progressFraction: Double {
@@ -38,6 +43,7 @@ final class AppState: ObservableObject {
         self.remaining = engine.remaining
         self.engineState = engine.state
         self.intervalMinutes = minutes
+        self.chinColor = Color(hex: store.accentHex)
     }
 
     func startTimer() {

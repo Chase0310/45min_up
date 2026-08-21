@@ -85,7 +85,7 @@ final class NotchPanel: NSPanel {
         switch mode {
         case .compact: return NSSize(width: 0, height: 0)
         case .reminder: return NSSize(width: 420, height: 118)
-        case .settings: return NSSize(width: 420, height: 190)
+        case .settings: return NSSize(width: 420, height: 225)
         }
     }
 }
