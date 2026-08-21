@@ -6,7 +6,8 @@ on:
 
 jobs:
   release:
-    runs-on: macos-14
+    # macos-15 默认 Xcode 16+，满足 Package.swift 的 swift-tools-version 6.2
+    runs-on: macos-15
     permissions:
       contents: write
     steps:
