@@ -89,39 +89,66 @@ private struct CompactCountdown: View {
     }
 }
 
-/// 蓝色保险丝：极淡全宽轨道 + 按剩余比例收缩的亮线，燃点带光晕
+/// 电光蓝保险丝：深蓝→亮青渐变线随剩余时间收缩，白色燃点 + 青色光晕 + 流动高光
 private struct CountdownFuse: View {
     var progress: Double
     var paused: Bool
 
-    private var accent: Color { Color(nsColor: .controlAccentColor) }
+    @State private var shimmerOn = false
+
+    // 固定电光蓝，不跟随系统强调色（Graphite 用户会得到一根黑线）
+    private static let blueDeep = Color(red: 0.04, green: 0.4, blue: 1.0)
+    private static let blueNeon = Color(red: 0, green: 0.78, blue: 1.0)
 
     var body: some View {
         GeometryReader { geo in
             let width = max(geo.size.width * progress, 4)
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.10))
+                // 全宽轨道（微蓝，作满刻度参照）
+                Capsule().fill(Self.blueNeon.opacity(0.14))
+                // 燃烧中的亮线
                 ZStack(alignment: .trailing) {
                     Capsule().fill(
                         LinearGradient(
-                            colors: [accent.opacity(0.7), accent],
+                            colors: [Self.blueDeep, Self.blueNeon],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
+                    // 白热燃点
                     Circle()
                         .fill(Color.white)
                         .frame(width: 4, height: 4)
-                        .shadow(color: accent, radius: 3)
+                        .shadow(color: Self.blueNeon, radius: 3.5)
                         .opacity(paused ? 0 : 1)
+                    // 流动高光（能量在跑的感觉）
+                    shimmer(width: geo.size.width)
                 }
                 .frame(width: width)
-                .shadow(color: accent.opacity(0.7), radius: 2)
+                .shadow(color: Self.blueNeon.opacity(0.8), radius: 3)
             }
             .frame(height: 3.5)
             .opacity(paused ? 0.35 : 1)
             .animation(.linear(duration: 0.5), value: progress)
         }
+    }
+
+    private func shimmer(width: CGFloat) -> some View {
+        Capsule()
+            .fill(
+                LinearGradient(
+                    colors: [.clear, .white.opacity(0.55), .clear],
+                    startPoint: .leading, endPoint: .trailing
+                )
+            )
+            .frame(width: 28)
+            .offset(x: shimmerOn ? width : -28)
+            .opacity(paused ? 0 : 1)
+            .onAppear {
+                withAnimation(.linear(duration: 1.8).repeatForever(autoreverses: false)) {
+                    shimmerOn = true
+                }
+            }
     }
 }
 
