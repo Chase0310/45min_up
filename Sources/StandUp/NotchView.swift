@@ -66,7 +66,7 @@ private struct CompactCountdown: View {
                     accent: app.chinColor,
                     urgent: app.isUrgent
                 )
-                .frame(height: 22)
+                .frame(height: 18)
 
                 if app.hovered {
                     Group {
@@ -94,8 +94,8 @@ private struct CompactCountdown: View {
     }
 }
 
-/// 碗形保险丝：与刘海同宽的 ∪ 弧，6pt 圆头描边——灰弧为满量程，
-/// 亮弧居中、从两端向碗底烧；白管芯、端点火苗脉动、能量点沿弧巡回；urgent 加热
+/// 托盘保险丝：中间一条直线、两端小弧上翘（贴合刘海底缘轮廓），6pt 圆头描边——
+/// 灰线为满量程，亮线居中、从两端向中间烧；白管芯、端点火苗脉动、能量点沿线巡回
 private struct FuseBowl: View {
     var progress: Double
     var paused: Bool
@@ -111,7 +111,7 @@ private struct FuseBowl: View {
         urgent ? Color(red: 1, green: 0.55, blue: 0.2) : accent
     }
 
-    /// 亮弧参数区间（弧参数 0=左端 1=右端，0.5=碗底）
+    /// 亮段参数区间（0=左端 1=右端，0.5=正中）
     private var litRange: ClosedRange<Double> {
         let p = min(max(progress, 0.04), 1)
         return (1 - p) / 2 ... (1 + p) / 2
@@ -120,29 +120,27 @@ private struct FuseBowl: View {
     var body: some View {
         GeometryReader { geo in
             let w = geo.size.width
-            let depth = geo.size.height - 6 // 弧线本身占 6pt
-            let scale = depth / (w / 2)
-            let arc = BowlArc(depthScale: min(1, max(0.05, scale)))
+            let shape = TrayArc()
             let stroke = StrokeStyle(lineWidth: 6, lineCap: .round)
 
             ZStack {
-                // 满量程弧：中性中灰
-                arc.stroke(Color(white: 0.55).opacity(0.5), style: stroke)
+                // 满量程：中性中灰
+                shape.stroke(Color(white: 0.55).opacity(0.5), style: stroke)
                     .shadow(color: .black.opacity(0.4), radius: 1)
 
-                // 亮弧 + 管芯 + 辉光
-                arc.trim(from: litRange.lowerBound, to: litRange.upperBound)
+                // 亮段 + 管芯 + 辉光
+                shape.trim(from: litRange.lowerBound, to: litRange.upperBound)
                     .stroke(accent, style: stroke)
                     .shadow(color: glowColor.opacity(urgent ? 1 : 0.8), radius: urgent ? 5 : 3)
-                arc.trim(from: litRange.lowerBound, to: litRange.upperBound)
+                shape.trim(from: litRange.lowerBound, to: litRange.upperBound)
                     .stroke(coreColor, style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
                     .opacity(paused ? 0.35 : 1)
 
-                // 端点火苗（亮弧两端）
-                flame(at: arcPoint(litRange.lowerBound, w: w, depth: depth))
-                flame(at: arcPoint(litRange.upperBound, w: w, depth: depth))
+                // 端点火苗
+                flame(at: trayPoint(litRange.lowerBound, w: w))
+                flame(at: trayPoint(litRange.upperBound, w: w))
 
-                // 能量点沿亮弧巡回
+                // 能量点沿亮段巡回
                 TimelineView(.animation(minimumInterval: 0.05)) { context in
                     let period = urgent ? 0.8 : 1.6
                     let t = context.date.timeIntervalSinceReferenceDate
@@ -151,7 +149,7 @@ private struct FuseBowl: View {
                     Circle()
                         .fill(Color.white)
                         .frame(width: 3.5, height: 3.5)
-                        .position(arcPoint(param, w: w, depth: depth))
+                        .position(trayPoint(param, w: w))
                         .opacity(paused ? 0 : 0.9)
                 }
             }
@@ -161,14 +159,40 @@ private struct FuseBowl: View {
         .animation(.easeInOut(duration: 0.2), value: paused)
     }
 
-    /// 弧参数 t∈[0,1] → 几何坐标（0=左端，0.5=碗底，1=右端）
-    private func arcPoint(_ t: Double, w: CGFloat, depth: CGFloat) -> CGPoint {
-        let angle = (180 - t * 180) * .pi / 180
-        let r = w / 2
-        return CGPoint(
-            x: r + r * CGFloat(cos(angle)),
-            y: 3 + depth * CGFloat(sin(angle)) // 3pt 补偿描边半径，让火苗贴在弧线上
-        )
+    /// 参数 t∈[0,1] → 托盘上的坐标（与 TrayArc 的分段一致）
+    private func trayPoint(_ t: Double, w: CGFloat) -> CGPoint {
+        let c = min(TrayArc.corner, w / 2)
+        let rise = TrayArc.rise
+        let curveLen = c * 1.15
+        let straightLen = w - 2 * c
+        let total = straightLen + 2 * curveLen
+        let d = t * total
+
+        func quad(_ u: CGFloat, _ p0: CGPoint, _ pc: CGPoint, _ p1: CGPoint) -> CGPoint {
+            let i: CGFloat = 1 - u
+            return CGPoint(
+                x: i * i * p0.x + 2 * i * u * pc.x + u * u * p1.x,
+                y: i * i * p0.y + 2 * i * u * pc.y + u * u * p1.y
+            )
+        }
+
+        if d < curveLen {
+            return quad(
+                CGFloat(d / curveLen),
+                CGPoint(x: 0, y: 0),
+                CGPoint(x: c * 0.55, y: 0),
+                CGPoint(x: c, y: rise)
+            )
+        } else if d < curveLen + straightLen {
+            return CGPoint(x: c + CGFloat(d - curveLen), y: rise)
+        } else {
+            return quad(
+                CGFloat((d - curveLen - straightLen) / curveLen),
+                CGPoint(x: w - c, y: rise),
+                CGPoint(x: w - c * 0.45, y: 0),
+                CGPoint(x: w, y: 0)
+            )
+        }
     }
 
     private func flame(at point: CGPoint) -> some View {
@@ -196,21 +220,27 @@ private struct FuseBowl: View {
     }
 }
 
-/// 单位碗弧：以 (w/2, 0) 为圆心的下半圆，再纵向压扁到目标深度
-private struct BowlArc: Shape {
-    var depthScale: CGFloat
+/// 托盘形：中间直线、两端小弧上翘（镜像刘海底缘的圆角轮廓）
+private struct TrayArc: Shape {
+    static let corner: CGFloat = 16 // 两端弧的水平跨度
+    static let rise: CGFloat = 10 // 两端比中间上翘的高度
 
     func path(in rect: CGRect) -> Path {
-        let r = rect.width / 2
+        let w = rect.width
+        let c = min(Self.corner, w / 2)
+        let rise = Self.rise
         var p = Path()
-        p.addArc(
-            center: CGPoint(x: r, y: 0),
-            radius: r,
-            startAngle: .degrees(180),
-            endAngle: .degrees(0),
-            clockwise: true
+        p.move(to: CGPoint(x: 0, y: 0))
+        p.addQuadCurve(
+            to: CGPoint(x: c, y: rise),
+            control: CGPoint(x: c * 0.55, y: 0)
         )
-        return p.applying(CGAffineTransform(scaleX: 1, y: depthScale))
+        p.addLine(to: CGPoint(x: w - c, y: rise))
+        p.addQuadCurve(
+            to: CGPoint(x: w, y: 0),
+            control: CGPoint(x: w - c * 0.45, y: 0)
+        )
+        return p
     }
 }
 
