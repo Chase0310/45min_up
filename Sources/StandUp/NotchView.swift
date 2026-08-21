@@ -155,6 +155,14 @@ private struct SettingsPanel: View {
     @ObservedObject var app: AppState
 
     private let presets: [Double] = [20, 30, 45, 60]
+    private static let colorSwatches = [
+        "#008CFF", // 钻蓝（默认）
+        "#00E5FF", // 电光青
+        "#30D158", // 苹果绿
+        "#FF9F0A", // 琥珀
+        "#FF375F", // 霓虹粉
+        "#FFFFFF", // 白
+    ]
 
     var body: some View {
         VStack(spacing: 12) {
@@ -204,9 +212,29 @@ private struct SettingsPanel: View {
                     .font(.system(size: 12, design: .rounded))
                     .foregroundColor(.white.opacity(0.7))
                 Spacer()
+                // 预设色块：点击即生效，不依赖系统取色器
+                HStack(spacing: 8) {
+                    ForEach(Self.colorSwatches, id: \.self) { hex in
+                        Button {
+                            app.chinColor = Color(hex: hex)
+                        } label: {
+                            Circle()
+                                .fill(Color(hex: hex))
+                                .frame(width: 16, height: 16)
+                                .overlay(
+                                    Circle().stroke(
+                                        app.chinColor.hexString == hex
+                                            ? Color.white : Color.white.opacity(0.25),
+                                        lineWidth: app.chinColor.hexString == hex ? 2 : 1
+                                    )
+                                )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
                 ColorPicker("", selection: $app.chinColor, supportsOpacity: false)
                     .labelsHidden()
-                    .frame(width: 56)
+                    .frame(width: 44)
             }
             .padding(.horizontal, 4)
 

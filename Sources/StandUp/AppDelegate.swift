@@ -63,7 +63,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installObservers() {
         app.$panelMode
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.relayout() }
+            .sink { [weak self] mode in
+                guard let self else { return }
+                self.relayout()
+                // 设置面板里有取色器等控件：面板需成为 key window、应用需激活，
+                // 否则 nonactivating 面板里的 ColorPicker 点了没反应
+                if mode == .settings {
+                    NSApp.activate(ignoringOtherApps: true)
+                    self.panel.makeKeyAndOrderFront(nil)
+                }
+            }
             .store(in: &cancellables)
 
         app.$hovered
